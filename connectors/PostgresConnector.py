@@ -1,7 +1,8 @@
 import psycopg2
+import psycopg2.sql as sql
 
 from Connector import Connector
-from error_handlers import log_error, retry_error
+from error_handlers import log_error, retry_log_error
 
 
 class PostgresConnector(Connector):
@@ -9,33 +10,39 @@ class PostgresConnector(Connector):
         super().__init__(db, user, password, host, port)
         self.__connect()
 
-    @retry_error()
+    def __del__(self):
+        if self.__dict__.get('conn'):
+            self.conn.close()
+
+    @retry_log_error()
     def __connect(self):
         self.conn = psycopg2.connect(dbname=self.db, user=self.user,
                                      password=self.password, host=self.host, port=self.port)
         self.cursor = self.conn.cursor()
 
-    def __del__(self):
-        if self.__dict__.get('conn'):
-            self.conn.close()
-
     @log_error
-    def exec(self, sql: str):
-        super().exec(sql)
-        self.cursor.execute(sql)
+    def exec(self, request: str, identifiers: list = None, literals: list = None, result='all'):
+        super().exec(request, identifiers, literals, result)
+        if identifiers:
+            identifiers = [sql.Identifier(x) for x in identifiers]
+            request = sql.SQL(request).format(*identifiers)
 
-    # todo not very beautiful
-    @log_error
-    def select(self, sql: str):
-        super().select(sql)
-        self.cursor.execute(sql)
-        data = self.cursor.fetchall()
-        return data
+        self.cursor.execute(request, literals)
+        return self.extract_result(result)
+
+    def extract_result(self, result):
+        if result == 'all':
+            return self.cursor.fetchall()
+        elif result == 'one':
+            return self.cursor.fetchone()
+        return None
 
     @log_error
     def table_info(self):
-        sql = "SELECT table_name, column_name, data_type  FROM information_schema.columns WHERE table_schema='public'"
-        data = self.select(sql)
+        request = "SELECT table_name, column_name, data_type  " \
+              "FROM information_schema.columns " \
+              "WHERE table_schema = 'public'"
+        data = self.exec(request, result='all')
         info = {}
         for d in data:
             if not info.get(d[0]):

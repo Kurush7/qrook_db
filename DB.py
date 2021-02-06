@@ -4,6 +4,8 @@ from data import *
 from request import *
 import sys
 
+# todo add exec raw query
+
 class DB:
     @log_error
     def __init__(self, connector_type, *conn_args, **conn_kwargs):
@@ -13,7 +15,8 @@ class DB:
         else:
             raise Exception('unknown connector type')
 
-    # todo interface: send __name__ as string and flag 'module_name'
+    # source is object with __dict__ field or a module name (with 'in_module' flag up)
+    @log_error
     def create_data(self, source=None, in_module=False):
         tables = self.meta['connector'].table_info()
         t = dict()
@@ -27,10 +30,17 @@ class DB:
                 source = sys.modules[source]
             source.__dict__.update(t)
 
+    @log_error
     def select(self, table: QRTable, *args: QRField):
         if len(args) == 0:
             fields = '*'
         else:
             fields = ('{},' * len(args))[:-1]
-        sql = 'select ' + fields + ' from ' + table.meta['table_name']
-        return QRSelect(self.meta['connector'], sql, [f.name for f in args])
+
+        request = 'select ' + fields + ' from {}'
+        table_name = table.meta['table_name']
+        identifiers = [f.name for f in args] + [table_name]
+
+        return QRSelect(self.meta['connector'], table, request, identifiers)
+
+    # todo add update, delete, insert

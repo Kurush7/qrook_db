@@ -1,6 +1,7 @@
 from qrlogging import logger
 import time
 
+# todo add param - error string
 def log_error(f):
     def wrapper(*args, **kwargs):
         try:
@@ -11,7 +12,7 @@ def log_error(f):
     return wrapper
 
 # todo param default from config
-def retry_error(retry_delay=5):
+def retry_log_error(retry_delay=5):
     def decorator(f):
         def wrapper(*args, **kwargs):
             while 1:

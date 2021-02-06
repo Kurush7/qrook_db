@@ -11,13 +11,12 @@ class QRTable:
             self.meta['fields'][name] = f
             self.__dict__[name] = f
 
-    # todo add fields
     def __str__(self):
         if self.meta['table_name'] is None:
             return '<Empty QRTable>'
         return '<QRTable ' + self.meta['table_name'] + '>'
 
-    # todo add select and etc
+    # todo add select, insert etc as references to DB methods
 
 
 class QRField:
@@ -30,7 +29,3 @@ class QRField:
         if self.name is None:
             return '<Empty QRField>'
         return '<QRField ' + self.name + ' of ' + self.table_name + '>'
-
-class Data:
-    pass
-    # sys.modules[__name__]

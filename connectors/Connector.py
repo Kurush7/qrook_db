@@ -21,13 +21,11 @@ class Connector:
     def __del__(self):
         pass
 
-    def exec(self, sql: str):
+    # for 'all': [(1, 2, 3), ...]
+    # for 'one': (1,2,3)
+    def exec(self, request_str: str, identifiers: list = None, literals: list = None, result='all'):
         pass
 
-    # [(1, 2, 3), ...]
-    def select(self, sql: str):
-        pass
-
-    # {'books':[('id', 'integer'), ('date', 'date')]}
+    # {'books':[('id', 'integer'), ('date', 'date'), ...], ...}
     def table_info(self):
         pass
