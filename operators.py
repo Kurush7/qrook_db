@@ -7,14 +7,14 @@ class QROperator:
         self.op = op
 
     def condition(self):
-        return '{}' + self.op + '%s', [self.data]
+        return '{}.{}' + self.op + '%s', [self.data]
 
 class Between(QROperator):
     def __init__(self, a, b):
         super().__init__('<>', [a, b])
 
     def condition(self):
-        return '{} between %s and %s', list(self.data)
+        return '{}.{} between %s and %s', list(self.data)
 
 class In(QROperator):
     def __init__(self, *args):
@@ -22,7 +22,7 @@ class In(QROperator):
 
     def condition(self):
         likes = ','.join(['%s'] * len(self.data))
-        return '{} in(' + likes + ')', list(self.data)
+        return '{}.{} in(' + likes + ')', list(self.data)
 
 class Eq(QROperator):
     def __init__(self, arg1, arg2=None):
@@ -35,7 +35,7 @@ class Eq(QROperator):
         if not self.duos:
             return super().condition()
         else:
-            return '{} = {}', []
+            return '{}.{} = {}.{}', []
 
 class GT(QROperator):
     def __init__(self, data):

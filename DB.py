@@ -40,8 +40,8 @@ class DB:
             fields = ''
             for arg in args:
                 if isinstance(arg, QRField):
-                    fields += '{},'
-                    identifiers.append(arg.name)
+                    fields += '{}.{},'
+                    identifiers.extend([arg.table_name, arg.name])
                 else:
                     logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
                     fields += arg + ','
