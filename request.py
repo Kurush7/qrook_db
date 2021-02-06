@@ -1,13 +1,18 @@
 from data_formatter import format_data
-from operators import *
-import inspect
+import db.operators as op
+from db.data import *
+
+# todo accurate - db.operators needed with 'db.' to avoid different namespaces-> isinstance will fail
+# todo where & having & orderby... all of them: from the left not only identifier: having count(*) > 5, for example
+# todo copy-paste where and having
+# todo add join
 
 def select_order(op):
     if op == 'join': return 0
     elif op == 'where': return 1
-    elif op == 'group by': return 2
+    elif op == 'group_by': return 2
     elif op == 'having': return 3
-    elif op == 'order by': return 4
+    elif op == 'order_by': return 4
 
 
 def get_field(field_name, tables) -> QRField:
@@ -31,11 +36,16 @@ class QRSelect:
 
     # todo connector set to None, add 'setConn' method
     # result of base select
-    def __init__(self, connector, table, request=None, identifiers=None):
+    def __init__(self, connector, table, request=None, identifiers=None, literals=None):
+        if identifiers is None:
+            identifiers = []
+        if literals is None:
+            literals = []
+
         self.connector = connector
         self.request = request
         self.identifiers = identifiers
-        self.literals = []
+        self.literals = literals
         self.tables = [table]
 
         self.conditions = dict()
@@ -54,23 +64,81 @@ class QRSelect:
         self.cur_order = max(self.cur_order, select_order('where'))
 
         for field_name, condition in kwargs.items():
-            if not inspect.isclass(condition):
-                condition = Eq(condition)
-            if not isinstance(condition, QROperator):
-                raise Exception('where: QROperator is missing')
+            if not isinstance(condition, op.QROperator):
+                condition = op.Eq(condition)
 
             condition, literals = condition.condition()
             field = get_field(field_name, self.tables)
 
             self.identifiers.append(field.name)
-            self.literals.append(literals)
+            self.literals.extend(literals)
 
             if self.conditions.get('where') is None:
                 self.conditions['where'] = ' where ' + condition
             else:
-                self.conditions['where'] += ', ' + condition
+                self.conditions['where'] += ' and ' + condition
 
         return self
+
+    def group_by(self, *args):
+        if select_order('group_by') < self.cur_order:
+            raise Exception('select: wrong operators sequence')
+        self.cur_order = max(self.cur_order, select_order('group_by'))
+
+        for field in args:
+            # todo check that field is in known tables
+            self.identifiers.append(field.name)
+
+            if self.conditions.get('group_by') is None:
+                self.conditions['group_by'] = ' group by {}'
+            else:
+                self.conditions['group_by'] += ', {}'
+
+        return self
+
+    def having(self, **kwargs):
+        if select_order('having') < self.cur_order:
+            raise Exception('select: wrong operators sequence')
+        self.cur_order = max(self.cur_order, select_order('having'))
+
+        for field_name, condition in kwargs.items():
+            if not isinstance(condition, op.QROperator):
+                condition = op.Eq(condition)
+
+            condition, literals = condition.condition()
+            field = get_field(field_name, self.tables)
+
+            self.identifiers.append(field.name)
+            self.literals.extend(literals)
+
+            if self.conditions.get('having') is None:
+                self.conditions['having'] = ' having ' + condition
+            else:
+                self.conditions['having'] += ' and ' + condition
+
+        return self
+
+    def order_by(self, *args, **kwargs):
+        if select_order('order_by') < self.cur_order:
+            raise Exception('select: wrong operators sequence')
+        self.cur_order = max(self.cur_order, select_order('order_by'))
+
+        sort_type = 'asc'
+        if kwargs.get('desc') == True:
+            sort_type = 'desc'
+
+        for field in args:
+            # todo check that field is in known tables
+            # todo add asc and desc
+            self.identifiers.append(field.name)
+
+            if self.conditions.get('order_by') is None:
+                self.conditions['order_by'] = ' order by {} ' + sort_type
+            else:
+                self.conditions['order_by'] += ', {} ' + sort_type
+
+        return self
+
 
     def all(self):
         return self.exec('all')

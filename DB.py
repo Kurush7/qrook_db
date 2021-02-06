@@ -31,16 +31,27 @@ class DB:
             source.__dict__.update(t)
 
     @log_error
-    def select(self, table: QRTable, *args: QRField):
+    def select(self, table: QRTable, *args):
+        identifiers, literals = [], []
         if len(args) == 0:
             fields = '*'
         else:
-            fields = ('{},' * len(args))[:-1]
+            fields = ''
+            for arg in args:
+                if isinstance(arg, QRField):
+                    fields += '{},'
+                    identifiers.append(arg.name)
+                else:
+                    logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
+                    fields += arg + ','
+                    #fields += '%s,'    # todo raw insert here
+                    #literals.append(arg)
+            fields = fields[:-1]
 
         request = 'select ' + fields + ' from {}'
         table_name = table.meta['table_name']
-        identifiers = [f.name for f in args] + [table_name]
+        identifiers += [table_name]
 
-        return QRSelect(self.meta['connector'], table, request, identifiers)
+        return QRSelect(self.meta['connector'], table, request, identifiers, literals)
 
     # todo add update, delete, insert
