@@ -5,6 +5,7 @@ from request import *
 import sys
 
 # todo add exec raw query
+# todo add select(books.id) parsing -> extract table from ONLY datafield
 
 class DB:
     @log_error

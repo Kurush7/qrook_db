@@ -14,7 +14,7 @@ class Between(QROperator):
         super().__init__('<>', [a, b])
 
     def condition(self):
-        return '{} between %s and %s', self.data
+        return '{} between %s and %s', list(self.data)
 
 class In(QROperator):
     def __init__(self, *args):
@@ -22,11 +22,20 @@ class In(QROperator):
 
     def condition(self):
         likes = ','.join(['%s'] * len(self.data))
-        return '{} in(' + likes + ')', self.data
+        return '{} in(' + likes + ')', list(self.data)
 
 class Eq(QROperator):
-    def __init__(self, data):
-        super().__init__('=', data)
+    def __init__(self, arg1, arg2=None):
+        self.arg1 = arg1
+        self.arg2 = arg2
+        self.duos = arg2 is not None
+        super().__init__('=', arg1)
+
+    def condition(self):
+        if not self.duos:
+            return super().condition()
+        else:
+            return '{} = {}', []
 
 class GT(QROperator):
     def __init__(self, data):

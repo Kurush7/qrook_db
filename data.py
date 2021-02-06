@@ -7,7 +7,7 @@ class QRTable:
 
         if fields is None: return
         for name, value_type in fields:
-            f = QRField(name, value_type, table_name)
+            f = QRField(name, value_type, self)
             self.meta['fields'][name] = f
             self.__dict__[name] = f
 
@@ -20,10 +20,11 @@ class QRTable:
 
 
 class QRField:
-    def __init__(self, name, value_type, table_name):
+    def __init__(self, name, value_type, table: QRTable):
         self.name = name
         self.type = value_type
-        self.table_name = table_name
+        self.table_name = table.meta['table_name']
+        self.table = table
 
     def __str__(self):
         if self.name is None:

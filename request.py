@@ -1,11 +1,12 @@
 from data_formatter import format_data
 import db.operators as op
 from db.data import *
+from error_handlers import *
 
 # todo accurate - db.operators needed with 'db.' to avoid different namespaces-> isinstance will fail
-# todo where & having & orderby... all of them: from the left not only identifier: having count(*) > 5, for example
-# todo copy-paste where and having
 # todo add join
+# todo unsafe warnings - deal with security on raw strings
+# todo manage many tables, ambiguous names
 
 def select_order(op):
     if op == 'join': return 0
@@ -26,6 +27,28 @@ def get_field(field_name, tables) -> QRField:
     if field is None:
         raise Exception('attribute %s not found' % field_name)
     return field
+
+def parse_request_args(tables, *args, **kwargs):
+    identifiers = []
+    literals = []
+    conditions = []
+    for field_name, condition in kwargs.items():
+        if not isinstance(condition, op.QROperator):
+            condition = op.Eq(condition)
+
+        condition, lits = condition.condition()
+        field = get_field(field_name, tables)
+
+        identifiers.append(field.name)
+        literals.extend(lits)
+        conditions.append(condition)
+
+    if args:
+        logger.warning("UNSAFE: executing raw select from table %s:  'where %s'", tables[0], args)
+        for arg in args:
+            conditions.append(arg)
+
+    return identifiers, literals, conditions
 
 # todo make heir from qrequest
 # todo add logging errors
@@ -58,25 +81,20 @@ class QRSelect:
         data = self.connector.exec(self.request, self.identifiers, self.literals, result=result)
         return format_data(data)
 
-    def where(self, **kwargs):
+    def where(self, *args, **kwargs):
         if select_order('where') < self.cur_order:
             raise Exception('select: wrong operators sequence')
         self.cur_order = max(self.cur_order, select_order('where'))
 
-        for field_name, condition in kwargs.items():
-            if not isinstance(condition, op.QROperator):
-                condition = op.Eq(condition)
+        identifiers, literals, conditions = parse_request_args(self.tables, *args, **kwargs)
+        self.identifiers.extend(identifiers)
+        self.literals.extend(literals)
 
-            condition, literals = condition.condition()
-            field = get_field(field_name, self.tables)
-
-            self.identifiers.append(field.name)
-            self.literals.extend(literals)
-
+        for cond in conditions:
             if self.conditions.get('where') is None:
-                self.conditions['where'] = ' where ' + condition
+                self.conditions['where'] = ' where ' + cond
             else:
-                self.conditions['where'] += ' and ' + condition
+                self.conditions['where'] += ' and ' + cond
 
         return self
 
@@ -96,26 +114,20 @@ class QRSelect:
 
         return self
 
-    def having(self, **kwargs):
+    def having(self, *args, **kwargs):
         if select_order('having') < self.cur_order:
             raise Exception('select: wrong operators sequence')
         self.cur_order = max(self.cur_order, select_order('having'))
 
-        for field_name, condition in kwargs.items():
-            if not isinstance(condition, op.QROperator):
-                condition = op.Eq(condition)
+        identifiers, literals, conditions = parse_request_args(self.tables, *args, **kwargs)
+        self.identifiers.extend(identifiers)
+        self.literals.extend(literals)
 
-            condition, literals = condition.condition()
-            field = get_field(field_name, self.tables)
-
-            self.identifiers.append(field.name)
-            self.literals.extend(literals)
-
+        for cond in conditions:
             if self.conditions.get('having') is None:
-                self.conditions['having'] = ' having ' + condition
+                self.conditions['having'] = ' having ' + cond
             else:
-                self.conditions['having'] += ' and ' + condition
-
+                self.conditions['having'] += ' having ' + cond
         return self
 
     def order_by(self, *args, **kwargs):
@@ -139,6 +151,28 @@ class QRSelect:
 
         return self
 
+    def join(self, table: QRTable, cond):
+        if select_order('join') < self.cur_order:
+            raise Exception('select: wrong operators sequence')
+        self.cur_order = max(self.cur_order, select_order('join'))
+
+        self.tables.append(table)
+
+        if not isinstance(cond, op.Eq):
+            raise Exception('join: op.Eq instance expected, got %s' % type(cond))
+        if not cond.duos:
+            raise Exception('join: op.Eq contains only one instance')
+        if not isinstance(cond.arg1, QRField) or not isinstance(cond.arg2, QRField):
+            raise Exception('join: op.Eq operands must be QRField instances')
+        if cond.arg1.table not in self.tables or cond.arg1.table not in self.tables:
+            raise Exception('join: wrong attribute\'s relations')
+
+        self.identifiers.extend([table.meta['table_name'], cond.arg1.name, cond.arg2.name])
+
+        if self.conditions.get('join') is None:
+            self.conditions['join'] = ''
+        self.conditions['join'] += ' join {} on {} = {}'
+        return self
 
     def all(self):
         return self.exec('all')
