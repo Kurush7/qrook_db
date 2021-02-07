@@ -1,5 +1,3 @@
-# todo add load from config
-# todo commit method
 from error_handlers import *
 
 

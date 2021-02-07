@@ -1,11 +1,11 @@
+from collections.abc import Iterable
+
 from data_formatter import format_data
 import db.operators as op
 from db.data import *
 from error_handlers import *
 from connectors.Connector import Connector
 # accurate - db.operators needed with 'db.' to avoid different namespaces-> isinstance will fail
-from collections.abc import Iterable
-
 
 # todo unsafe warnings - deal with security on raw strings
 
@@ -95,7 +95,6 @@ class QRequest:
 
 
 class QRWhere(QRequest):
-    # result of base select
     def __init__(self, connector: Connector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         super().__init__(connector, table, request, identifiers, literals, auto_commit)

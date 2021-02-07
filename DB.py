@@ -23,7 +23,7 @@ class DB:
         t = dict()
 
         for name, field in tables.items():
-            t[name] = QRTable(name, field)
+            t[name] = QRTable(name, field, self)
 
         self.__dict__.update(t)
         if source:

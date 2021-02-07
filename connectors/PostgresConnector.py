@@ -39,9 +39,9 @@ class PostgresConnector(Connector):
 
     @log_error
     def table_info(self):
-        request = "SELECT table_name, column_name, data_type  " \
-              "FROM information_schema.columns " \
-              "WHERE table_schema = 'public'"
+        request = "select table_name, column_name, data_type  " \
+                  "from information_schema.columns " \
+                  "where table_schema = 'public'"
         data = self.exec(request, result='all')
         info = {}
         for d in data:
