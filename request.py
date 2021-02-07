@@ -5,6 +5,8 @@ import db.operators as op
 from db.data import *
 from error_handlers import *
 from connectors.Connector import Connector
+
+
 # accurate - db.operators needed with 'db.' to avoid different namespaces-> isinstance will fail
 
 # todo unsafe warnings - deal with security on raw strings
@@ -64,6 +66,7 @@ def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
     return identifiers, literals, conditions
 
 
+@log_class(log_error_default_self)
 class QRequest:
     def __init__(self, connector: Connector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
@@ -81,7 +84,6 @@ class QRequest:
         self.auto_commit = auto_commit
         self.cur_order = -1
 
-    @log_error
     def exec(self, result=None):
         cond_ops = list(self.conditions.keys())
         cond_ops.sort(key=lambda x: request_operators_order(x))
@@ -94,12 +96,12 @@ class QRequest:
         return True
 
 
+@log_class(log_error_default_self)
 class QRWhere(QRequest):
     def __init__(self, connector: Connector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         super().__init__(connector, table, request, identifiers, literals, auto_commit)
 
-    @log_error
     def where(self, *args, **kwargs):
         if request_operators_order('group_by') < self.cur_order:
             raise Exception('select: wrong operators sequence')
@@ -118,12 +120,12 @@ class QRWhere(QRequest):
         return self
 
 
+@log_class(log_error_default_self, exceptions=['all', 'one'])
 class QRSelect(QRWhere):
     def __init__(self, connector: Connector, table: QRTable, request: str = '',
                  identifiers=None, literals=None):
         super().__init__(connector, table, request, identifiers, literals, False)
 
-    @log_error
     def exec(self, result=None):
         cond_ops = list(self.conditions.keys())
         cond_ops.sort(key=lambda x: request_operators_order(x))
@@ -132,7 +134,6 @@ class QRSelect(QRWhere):
         data = self.connector.exec(self.request, self.identifiers, self.literals, result=result)
         return format_data(data)
 
-    @log_error
     def group_by(self, *args):
         if request_operators_order('group_by') < self.cur_order:
             raise Exception('select: wrong operators sequence')
@@ -149,7 +150,6 @@ class QRSelect(QRWhere):
 
         return self
 
-    @log_error
     def having(self, *args, **kwargs):
         if request_operators_order('having') < self.cur_order:
             raise Exception('select: wrong operators sequence')
@@ -166,7 +166,6 @@ class QRSelect(QRWhere):
                 self.conditions['having'] += ' having ' + cond
         return self
 
-    @log_error
     def order_by(self, *args, **kwargs):
         if request_operators_order('order_by') < self.cur_order:
             raise Exception('select: wrong operators sequence')
@@ -187,7 +186,6 @@ class QRSelect(QRWhere):
 
         return self
 
-    @log_error
     def join(self, table: QRTable, cond):
         if request_operators_order('join') < self.cur_order:
             raise Exception('select: wrong operators sequence')
@@ -228,12 +226,12 @@ class QRSelect(QRWhere):
         return self.exec('one')
 
 
+@log_class(log_error_default_self)
 class QRUpdate(QRWhere):
     def __init__(self, connector: Connector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         super().__init__(connector, table, request, identifiers, literals, auto_commit)
 
-    @log_error
     def set(self, *args, **kwargs):
         if request_operators_order('set') < self.cur_order:
             raise Exception('select: wrong operators sequence')
@@ -254,6 +252,7 @@ class QRUpdate(QRWhere):
         return self
 
 
+@log_class(log_error_default_self)
 class QRInsert(QRequest):
     def __init__(self, connector: Connector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
@@ -261,7 +260,6 @@ class QRInsert(QRequest):
         self.column_cnt = len(identifiers) - 1
         self.data_query = ''
 
-    @log_error
     def exec(self, result=None):
         self.request += ' ' + self.data_query
         self.connector.exec(self.request, self.identifiers, self.literals, result=result)
@@ -269,7 +267,6 @@ class QRInsert(QRequest):
             self.connector.commit()
         return True
 
-    @log_error
     def values(self, *args):
         if request_operators_order('values') < self.cur_order:
             raise Exception('select: wrong operators sequence')

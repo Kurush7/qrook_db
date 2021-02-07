@@ -29,7 +29,7 @@ class CustomFormatter(logging.Formatter):
 
 
 def get_file_handler():
-    file_handler = logging.FileHandler("x.log")
+    file_handler = logging.FileHandler("qrook_app.log")
     file_handler.setLevel(logging.WARNING)
     file_handler.setFormatter(logging.Formatter(_log_format))
     return file_handler
@@ -44,9 +44,10 @@ def get_stream_handler():
 
 
 def default_logger():
+    '''fast setup
     logging.basicConfig(filename="qrook_app.log", level=logging.INFO,
                         format = "%(asctime)s - [%(levelname)s] - %(app)s - %(name)s -"\
-                         "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s")
+                         "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s")'''
 
     logger = logging.getLogger("default")
     logger.addHandler(get_file_handler())

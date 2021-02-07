@@ -1,8 +1,10 @@
 from error_handlers import *
 
+
+@log_class(log_error)
 class QRTable:
     # fields = {'a':'int', 'b':'varchar'}
-    def __init__(self, table_name=None, fields=None, DB = None):
+    def __init__(self, table_name=None, fields=None, DB=None):
         self.meta = dict()
         self.meta['table_name'] = table_name
         self.meta['fields'] = {}
@@ -19,29 +21,26 @@ class QRTable:
             return '<Empty QRTable>'
         return '<QRTable ' + self.meta['table_name'] + '>'
 
-    @log_error
     def select(self, *args, **kwargs):
         if self.DB is None:
             raise Exception('no DB instance set for table to make queries to')
         return self.DB.select(self, *args, **kwargs)
 
-    @log_error
     def update(self, *args, **kwargs):
         if self.DB is None:
             raise Exception('no DB instance set for table to make queries to')
         return self.DB.update(self, *args, **kwargs)
 
-    @log_error
     def insert(self, *args, **kwargs):
         if self.DB is None:
             raise Exception('no DB instance set for table to make queries to')
         return self.DB.insert(self, *args, **kwargs)
 
-    @log_error
     def delete(self, *args, **kwargs):
         if self.DB is None:
             raise Exception('no DB instance set for table to make queries to')
         return self.DB.delete(self, *args, **kwargs)
+
 
 class QRField:
     def __init__(self, name, value_type, table: QRTable):

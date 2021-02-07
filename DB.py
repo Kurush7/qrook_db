@@ -6,7 +6,7 @@ import sys
 
 # todo add exec raw query
 # todo add select(books.id) parsing -> extract table from ONLY datafield
-
+log_class(log_error)
 class DB:
     @log_error
     def __init__(self, connector_type, *conn_args, **conn_kwargs):
@@ -17,7 +17,6 @@ class DB:
             raise Exception('unknown connector type')
 
     # source is object with __dict__ field or a module name (with 'in_module' flag up)
-    @log_error
     def create_data(self, source=None, in_module=False):
         tables = self.meta['connector'].table_info()
         t = dict()
@@ -31,12 +30,9 @@ class DB:
                 source = sys.modules[source]
             source.__dict__.update(t)
 
-    @log_error
     def commit(self):
         self.meta['connector'].commit()
 
-
-    @log_error
     def select(self, table: QRTable, *args):
         identifiers, literals = [], []
         if len(args) == 0:
@@ -58,7 +54,6 @@ class DB:
 
         return QRSelect(self.meta['connector'], table, request, identifiers, literals)
 
-    @log_error
     def delete(self, table: QRTable, auto_commit=False):
         identifiers, literals = [], []
 
@@ -69,7 +64,6 @@ class DB:
         return QRWhere(self.meta['connector'], table, request, identifiers,
                        literals, auto_commit)
 
-    @log_error
     def update(self, table: QRTable, auto_commit=False):
         identifiers, literals = [], []
 
@@ -80,7 +74,6 @@ class DB:
         return QRUpdate(self.meta['connector'], table, request, identifiers,
                              literals, auto_commit)
 
-    @log_error
     def insert(self, table: QRTable, *args, auto_commit=False):
         identifiers, literals = [], []
         if len(args) == 0:
