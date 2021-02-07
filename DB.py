@@ -5,6 +5,7 @@ from request import *
 import sys
 
 # todo add exec raw query
+# todo add support for nested queries
 # todo add select(books.id) parsing -> extract table from ONLY datafield
 log_class(log_error)
 class DB:
