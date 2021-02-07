@@ -29,3 +29,6 @@ class Connector:
     # {'books':[('id', 'integer'), ('date', 'date'), ...], ...}
     def table_info(self):
         pass
+
+    def commit(self):
+        pass

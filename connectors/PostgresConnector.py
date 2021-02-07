@@ -49,3 +49,7 @@ class PostgresConnector(Connector):
                 info[d[0]] = []
             info[d[0]].append((d[1], d[2]))
         return info
+
+    @log_error
+    def commit(self):
+        self.conn.commit()

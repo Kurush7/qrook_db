@@ -6,23 +6,32 @@ class QROperator:
         self.data = data
         self.op = op
 
-    def condition(self):
-        return '{}.{}' + self.op + '%s', [self.data]
+    def condition(self, disable_full_name=False):
+        if disable_full_name:
+            return '{}' + self.op + '%s', [self.data]
+        else:
+            return '{}.{}' + self.op + '%s', [self.data]
 
 class Between(QROperator):
     def __init__(self, a, b):
         super().__init__('<>', [a, b])
 
-    def condition(self):
-        return '{}.{} between %s and %s', list(self.data)
+    def condition(self, disable_full_name=False):
+        if disable_full_name:
+            return '{} between %s and %s', list(self.data)
+        else:
+            return '{}.{} between %s and %s', list(self.data)
 
 class In(QROperator):
     def __init__(self, *args):
         super().__init__('<>', args)
 
-    def condition(self):
+    def condition(self, disable_full_name=False):
         likes = ','.join(['%s'] * len(self.data))
-        return '{}.{} in(' + likes + ')', list(self.data)
+        if disable_full_name:
+            return '{} in(' + likes + ')', list(self.data)
+        else:
+            return '{}.{} in(' + likes + ')', list(self.data)
 
 class Eq(QROperator):
     def __init__(self, arg1, arg2=None):
@@ -31,11 +40,14 @@ class Eq(QROperator):
         self.duos = arg2 is not None
         super().__init__('=', arg1)
 
-    def condition(self):
+    def condition(self, disable_full_name=False):
         if not self.duos:
-            return super().condition()
+            return super().condition(disable_full_name)
         else:
-            return '{}.{} = {}.{}', []
+            if disable_full_name:
+                return '{} = {}', []
+            else:
+                return '{}.{} = {}.{}', []
 
 class GT(QROperator):
     def __init__(self, data):

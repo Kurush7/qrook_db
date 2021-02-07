@@ -32,6 +32,11 @@ class DB:
             source.__dict__.update(t)
 
     @log_error
+    def commit(self):
+        self.meta['connector'].commit()
+
+
+    @log_error
     def select(self, table: QRTable, *args):
         identifiers, literals = [], []
         if len(args) == 0:
@@ -45,8 +50,6 @@ class DB:
                 else:
                     logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
                     fields += arg + ','
-                    #fields += '%s,'    # todo raw insert here
-                    #literals.append(arg)
             fields = fields[:-1]
 
         request = 'select ' + fields + ' from {}'
@@ -55,4 +58,47 @@ class DB:
 
         return QRSelect(self.meta['connector'], table, request, identifiers, literals)
 
-    # todo add update, delete, insert
+    @log_error
+    def delete(self, table: QRTable, auto_commit=False):
+        identifiers, literals = [], []
+
+        request = 'delete from {}'
+        table_name = table.meta['table_name']
+        identifiers += [table_name]
+
+        return QRWhere(self.meta['connector'], table, request, identifiers,
+                       literals, auto_commit)
+
+    @log_error
+    def update(self, table: QRTable, auto_commit=False):
+        identifiers, literals = [], []
+
+        request = 'update {}'
+        table_name = table.meta['table_name']
+        identifiers += [table_name]
+
+        return QRUpdate(self.meta['connector'], table, request, identifiers,
+                             literals, auto_commit)
+
+    @log_error
+    def insert(self, table: QRTable, *args, auto_commit=False):
+        identifiers, literals = [], []
+        if len(args) == 0:
+            fields = ''
+        else:
+            fields = ''
+            for arg in args:
+                if isinstance(arg, QRField):
+                    fields += '{},'
+                    identifiers.extend([arg.name])
+                else:
+                    logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
+                    fields += arg + ','
+            fields = fields[:-1]
+            fields = '(' + fields + ')'
+
+        request = 'insert into {} ' + fields + ' values '
+        table_name = table.meta['table_name']
+        identifiers = [table_name] + identifiers
+
+        return QRInsert(self.meta['connector'], table, request, identifiers, literals, auto_commit)
