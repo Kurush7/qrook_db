@@ -1,8 +1,8 @@
 from collections.abc import Iterable
 
-from data_formatter import format_data
-import db.operators as op
-from db.data import *
+from data_formatter import defaultDataFormatter
+import qrookDB.operators as op
+from qrookDB.data import *
 from error_handlers import *
 from connectors.Connector import Connector
 
@@ -15,16 +15,12 @@ from connectors.Connector import Connector
 def request_operators_order(op):
     if op == 'join': return 0
     if op == 'set': return 0
-    if op == 'values':
-        return 0
-    elif op == 'where':
-        return 1
-    elif op == 'group_by':
-        return 2
-    elif op == 'having':
-        return 3
-    elif op == 'order_by':
-        return 4
+    if op == 'values': return 0
+    elif op == 'where': return 1
+    elif op == 'returning': return 1
+    elif op == 'group_by': return 2
+    elif op == 'having': return 3
+    elif op == 'order_by': return 4
 
 
 def get_field(field_name, tables) -> QRField:
@@ -83,6 +79,7 @@ class QRequest:
         self.conditions = dict()
         self.auto_commit = auto_commit
         self.cur_order = -1
+        self.used_fields = []
 
     def exec(self, result=None):
         cond_ops = list(self.conditions.keys())
@@ -107,6 +104,12 @@ class QRWhere(QRequest):
             raise Exception('select: wrong operators sequence')
         self.cur_order = max(self.cur_order, request_operators_order('group_by'))
 
+        op = kwargs.get('bool')
+        if op is not None:
+            kwargs.pop('bool')
+        if op not in ['and', 'or']:
+            op = 'and'
+
         identifiers, literals, conditions = parse_request_args(self.tables, *args, **kwargs)
         self.identifiers.extend(identifiers)
         self.literals.extend(literals)
@@ -115,7 +118,7 @@ class QRWhere(QRequest):
             if self.conditions.get('where') is None:
                 self.conditions['where'] = ' where ' + cond
             else:
-                self.conditions['where'] += ' and ' + cond
+                self.conditions['where'] += ' ' + op + ' ' + cond
 
         return self
 
@@ -123,8 +126,12 @@ class QRWhere(QRequest):
 @log_class(log_error_default_self, exceptions=['all', 'one'])
 class QRSelect(QRWhere):
     def __init__(self, connector: Connector, table: QRTable, request: str = '',
-                 identifiers=None, literals=None):
+                 identifiers=None, literals=None, used_fields=None):
         super().__init__(connector, table, request, identifiers, literals, False)
+        if used_fields:
+            self.used_fields = list(used_fields)
+        else:
+            self.used_fields = list(table.meta['fields'].keys())
 
     def exec(self, result=None):
         cond_ops = list(self.conditions.keys())
@@ -132,7 +139,7 @@ class QRSelect(QRWhere):
         for ext in [self.conditions[i] for i in cond_ops]:
             self.request += ' ' + ext
         data = self.connector.exec(self.request, self.identifiers, self.literals, result=result)
-        return format_data(data)
+        return defaultDataFormatter.format_data(data, self.used_fields, result)
 
     def group_by(self, *args):
         if request_operators_order('group_by') < self.cur_order:
@@ -234,7 +241,7 @@ class QRUpdate(QRWhere):
 
     def set(self, *args, **kwargs):
         if request_operators_order('set') < self.cur_order:
-            raise Exception('select: wrong operators sequence')
+            raise Exception('update: wrong operators sequence')
         self.cur_order = max(self.cur_order, request_operators_order('set'))
 
         # todo here stuff like x>10 possible... in set - no sense
@@ -262,14 +269,21 @@ class QRInsert(QRequest):
 
     def exec(self, result=None):
         self.request += ' ' + self.data_query
-        self.connector.exec(self.request, self.identifiers, self.literals, result=result)
+        cond_ops = list(self.conditions.keys())
+        cond_ops.sort(key=lambda x: request_operators_order(x))
+        for ext in [self.conditions[i] for i in cond_ops]:
+            self.request += ' ' + ext
+        data = self.connector.exec(self.request, self.identifiers, self.literals, result=result)
         if self.auto_commit:
             self.connector.commit()
-        return True
+
+        if result is None:
+            return True
+        return defaultDataFormatter.format_data(data, self.used_fields, result)
 
     def values(self, *args):
         if request_operators_order('values') < self.cur_order:
-            raise Exception('select: wrong operators sequence')
+            raise Exception('insert: wrong operators sequence')
         self.cur_order = max(self.cur_order, request_operators_order('values'))
         literals = []
         value_sets = 0
@@ -300,3 +314,41 @@ class QRInsert(QRequest):
             self.data_query += ', ' + query
         self.literals.extend(literals)
         return self
+
+    def returning(self, *args):
+        if request_operators_order('returning') < self.cur_order:
+            raise Exception('insert: wrong operators sequence')
+        self.cur_order = max(self.cur_order, request_operators_order('returning'))
+        identifiers = []
+        query = []
+
+        for arg in args:
+            if isinstance(arg, QRField):
+                query += ['{}']
+                identifiers.extend([arg.name])
+                self.used_fields.append(arg.name)
+            else:
+                logger.warning('UNSAFE: executing raw returning from table %s with args: %s',
+                               self.tables[0], args)
+                # todo here used fields
+                if arg == '*':
+                    self.used_fields = list(self.tables[0].meta['fields'].keys())
+                else:
+                    self.used_fields.append(arg)
+                query += [arg]
+
+        self.identifiers.extend(identifiers)
+
+        for q in query:
+            if self.conditions.get('returning') is None:
+                self.conditions['returning'] = ' returning ' + q
+            else:
+                self.conditions['returning'] += ' , ' + q
+            return self
+
+    def all(self):
+        return self.exec('all')
+
+    def one(self):
+        return self.exec('one')
+

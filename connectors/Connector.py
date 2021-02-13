@@ -19,8 +19,8 @@ class Connector:
     def __del__(self):
         pass
 
-    # for 'all': [(1, 2, 3), ...]
-    # for 'one': (1,2,3)
+    # for 'all': [(1, 2, 3), ...] or []
+    # for 'one': (1,2,3) or None
     def exec(self, request_str: str, identifiers: list = None, literals: list = None, result='all'):
         pass
 

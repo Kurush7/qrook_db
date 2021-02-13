@@ -4,18 +4,25 @@ from data import *
 from request import *
 import sys
 
+from data_formatter import defaultDataFormatter
+
 # todo add exec raw query
 # todo add support for nested queries
 # todo add select(books.id) parsing -> extract table from ONLY datafield
 log_class(log_error)
 class DB:
     @log_error
-    def __init__(self, connector_type, *conn_args, **conn_kwargs):
+
+    # format: one of 'list', 'dict'
+    def __init__(self, connector_type, *conn_args, format=None, **conn_kwargs):
         self.meta = dict()
         if connector_type == 'postgres':
             self.meta['connector'] = PostgresConnector.PostgresConnector(*conn_args, **conn_kwargs)
         else:
             raise Exception('unknown connector type')
+
+        if format is not None:
+            defaultDataFormatter.format = format
 
     # source is object with __dict__ field or a module name (with 'in_module' flag up)
     def create_data(self, source=None, in_module=False):
@@ -35,7 +42,7 @@ class DB:
         self.meta['connector'].commit()
 
     def select(self, table: QRTable, *args):
-        identifiers, literals = [], []
+        identifiers, literals, used_fields = [], [], []
         if len(args) == 0:
             fields = '*'
         else:
@@ -44,16 +51,19 @@ class DB:
                 if isinstance(arg, QRField):
                     fields += '{}.{},'
                     identifiers.extend([arg.table_name, arg.name])
+                    used_fields.append(arg.name)
                 else:
                     logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
                     fields += arg + ','
+                    used_fields.append(arg)
             fields = fields[:-1]
 
         request = 'select ' + fields + ' from {}'
         table_name = table.meta['table_name']
         identifiers += [table_name]
 
-        return QRSelect(self.meta['connector'], table, request, identifiers, literals)
+        return QRSelect(self.meta['connector'], table, request,
+                        identifiers, literals, used_fields=used_fields)
 
     def delete(self, table: QRTable, auto_commit=False):
         identifiers, literals = [], []
