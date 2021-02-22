@@ -9,7 +9,7 @@ class DataFormatter:
     # result type -> 'all', 'one'
     @log_error
     def format_data(self, data, used_fields, result_type):
-        if result_type is None:
+        if result_type is None or data is None:
             return None
 
         if self.format == 'list':

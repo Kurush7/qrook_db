@@ -1,9 +1,8 @@
-import PostgresConnector
+from request import *
+from PostgresConnector import *
 from error_handlers import *
 from data import *
-from request import *
 import sys
-
 from data_formatter import defaultDataFormatter
 
 # todo add exec raw query
@@ -17,7 +16,7 @@ class DB:
     def __init__(self, connector_type, *conn_args, format=None, **conn_kwargs):
         self.meta = dict()
         if connector_type == 'postgres':
-            self.meta['connector'] = PostgresConnector.PostgresConnector(*conn_args, **conn_kwargs)
+            self.meta['connector'] = PostgresConnector(*conn_args, **conn_kwargs)
         else:
             raise Exception('unknown connector type')
 
@@ -40,6 +39,10 @@ class DB:
 
     def commit(self):
         self.meta['connector'].commit()
+
+    def exec(self, raw_query):
+        logger.warning('UNSAFE: executing raw query: %s', raw_query)
+        return QRequest(self.meta['connector'], request=raw_query)
 
     def select(self, table: QRTable, *args):
         identifiers, literals, used_fields = [], [], []

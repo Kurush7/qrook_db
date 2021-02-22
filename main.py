@@ -1,6 +1,6 @@
-import qrookDB.DB as db
-import qrookDB.operators as op
-from qrookDB.data import QRTable
+import DB as db
+import operators as op
+from data import QRTable
 books, books_authors, authors, events = [QRTable()] * 4
 
 # todo add 'as' syntax: 'select count(*) as cnt
@@ -17,8 +17,9 @@ def main():
     data = books.select('count(*)').group_by(books.original_publication_year).all()
     print(data[:10])
 
-    data = DB.select(books, books.id).where('id < 10').order_by(books.id, desc=True).one()
-    print(data)
+    data = DB.select(books, books.id).where('id < 10').order_by(books.id, desc=True).\
+        limit(3).offset(2).all()
+    print('limit & offset', data)
 
     data = books.select(authors.id, books.id)\
         .join(books_authors, 'books_authors.book_id = books.id')\
@@ -41,6 +42,9 @@ def main():
     #ok = DB.insert(events, events.date, events.time, auto_commit=True).values([d, t]).exec()
     query = events.insert(events.date, events.time, auto_commit=True).values([[d, t], [None, t]]).returning('*')
     data = query.all()
+    print(data)
+
+    data = DB.exec('select * from get_book_authors(1) as f(id int, name varchar)').config_fields('id', 'name').all()
     print(data)
 
 

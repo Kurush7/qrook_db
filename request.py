@@ -1,10 +1,10 @@
 from collections.abc import Iterable
 
 from data_formatter import defaultDataFormatter
-import qrookDB.operators as op
-from qrookDB.data import *
+import operators as op
+from data import *
 from error_handlers import *
-from connectors.Connector import Connector
+from Connector import Connector
 
 
 # accurate - db.operators needed with 'db.' to avoid different namespaces-> isinstance will fail
@@ -21,6 +21,8 @@ def request_operators_order(op):
     elif op == 'group_by': return 2
     elif op == 'having': return 3
     elif op == 'order_by': return 4
+    elif op == 'limit': return 5
+    elif op == 'offset': return 6
 
 
 def get_field(field_name, tables) -> QRField:
@@ -64,7 +66,7 @@ def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
 
 @log_class(log_error_default_self)
 class QRequest:
-    def __init__(self, connector: Connector, table: QRTable, request: str = '',
+    def __init__(self, connector: Connector, table: QRTable = None, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         self.connector = connector
         self.request = request
@@ -75,7 +77,7 @@ class QRequest:
 
         self.identifiers = identifiers
         self.literals = literals
-        self.tables = [table]
+        self.tables = [table] if table else []
         self.conditions = dict()
         self.auto_commit = auto_commit
         self.cur_order = -1
@@ -86,11 +88,24 @@ class QRequest:
         cond_ops.sort(key=lambda x: request_operators_order(x))
         for ext in [self.conditions[i] for i in cond_ops]:
             self.request += ' ' + ext
-        self.connector.exec(self.request, self.identifiers, self.literals, result=result)
+        data = self.connector.exec(self.request, self.identifiers, self.literals, result=result)
 
         if self.auto_commit:
             self.connector.commit()
-        return True
+
+        return True if (result is None) else \
+            defaultDataFormatter.format_data(data, self.used_fields, result)
+
+    def config_fields(self, *args):
+        # todo add support for iterable params
+        self.used_fields = args
+        return self
+
+    def all(self):
+        return self.exec('all')
+
+    def one(self):
+        return self.exec('one')
 
 
 @log_class(log_error_default_self)
@@ -133,13 +148,6 @@ class QRSelect(QRWhere):
         else:
             self.used_fields = list(table.meta['fields'].keys())
 
-    def exec(self, result=None):
-        cond_ops = list(self.conditions.keys())
-        cond_ops.sort(key=lambda x: request_operators_order(x))
-        for ext in [self.conditions[i] for i in cond_ops]:
-            self.request += ' ' + ext
-        data = self.connector.exec(self.request, self.identifiers, self.literals, result=result)
-        return defaultDataFormatter.format_data(data, self.used_fields, result)
 
     def group_by(self, *args):
         if request_operators_order('group_by') < self.cur_order:
@@ -193,6 +201,32 @@ class QRSelect(QRWhere):
 
         return self
 
+    def limit(self, n):
+        if request_operators_order('limit') < self.cur_order:
+            raise Exception('select: wrong operators sequence')
+        self.cur_order = max(self.cur_order, request_operators_order('limit')) + 1
+
+        if not isinstance(n, int):
+            raise Exception('select: integer expected as a limit param')
+
+        self.literals.append(n)
+        self.conditions['limit'] = ' limit %s '
+
+        return self
+
+    def offset(self, n):
+        if request_operators_order('offset') < self.cur_order:
+            raise Exception('select: wrong operators sequence')
+        self.cur_order = max(self.cur_order, request_operators_order('offset')) + 1
+
+        if not isinstance(n, int):
+            raise Exception('select: integer expected as a offset param')
+
+        self.literals.append(n)
+        self.conditions['offset'] = ' offset %s '
+
+        return self
+
     def join(self, table: QRTable, cond):
         if request_operators_order('join') < self.cur_order:
             raise Exception('select: wrong operators sequence')
@@ -207,8 +241,8 @@ class QRSelect(QRWhere):
             join_cond = 'join {} on %s' % cond
 
         else:
-            if not isinstance(cond, op.Eq):
-                raise Exception('join: op.Eq instance expected, got %s' % type(cond))
+            # todo different imports -> no recognition if not isinstance(cond, op.Eq):
+            #    raise Exception('join: op.Eq instance expected, got %s' % type(cond))
             if not cond.duos:
                 raise Exception('join: op.Eq contains only one instance')
             if not isinstance(cond.arg1, QRField) or not isinstance(cond.arg2, QRField):
@@ -225,12 +259,6 @@ class QRSelect(QRWhere):
             self.conditions['join'] = ''
         self.conditions['join'] += join_cond
         return self
-
-    def all(self):
-        return self.exec('all')
-
-    def one(self):
-        return self.exec('one')
 
 
 @log_class(log_error_default_self)
@@ -293,7 +321,7 @@ class QRInsert(QRequest):
                 raise Exception('insert values: iterable expected')
             flag = False
             for a in arg:
-                if isinstance(a, Iterable):
+                if isinstance(a, Iterable) and not isinstance(a, str):
                     if len(a) != self.column_cnt:
                         raise Exception('insert values: wrong column count')
                     literals.extend(a)
@@ -345,10 +373,3 @@ class QRInsert(QRequest):
             else:
                 self.conditions['returning'] += ' , ' + q
             return self
-
-    def all(self):
-        return self.exec('all')
-
-    def one(self):
-        return self.exec('one')
-
