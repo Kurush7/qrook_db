@@ -8,7 +8,8 @@ from data_formatter import defaultDataFormatter
 # todo add exec raw query
 # todo add support for nested queries
 # todo add select(books.id) parsing -> extract table from ONLY datafield
-log_class(log_error)
+
+@log_class(log_error)
 class DB:
     @log_error
 
@@ -41,25 +42,27 @@ class DB:
         self.meta['connector'].commit()
 
     def exec(self, raw_query):
-        logger.warning('UNSAFE: executing raw query: %s', raw_query)
+        #logger.warning('UNSAFE: executing raw query: %s', raw_query)
         return QRequest(self.meta['connector'], request=raw_query)
 
     def select(self, table: QRTable, *args):
         identifiers, literals, used_fields = [], [], []
         if len(args) == 0:
-            fields = '*'
+            own_args = list(table.meta['fields'].values())
         else:
-            fields = ''
-            for arg in args:
-                if isinstance(arg, QRField):
-                    fields += '{}.{},'
-                    identifiers.extend([arg.table_name, arg.name])
-                    used_fields.append(arg.name)
-                else:
-                    logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
-                    fields += arg + ','
-                    used_fields.append(arg)
-            fields = fields[:-1]
+            own_args = args
+
+        fields = ''
+        for arg in own_args:
+            if isinstance(arg, QRField):
+                fields += '{}.{},'
+                identifiers.extend([arg.table_name, arg.name])
+                used_fields.append(arg.name)
+            else:
+                #logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
+                fields += arg + ','
+                used_fields.append(arg)
+        fields = fields[:-1]
 
         request = 'select ' + fields + ' from {}'
         table_name = table.meta['table_name']
@@ -99,7 +102,7 @@ class DB:
                     fields += '{},'
                     identifiers.extend([arg.name])
                 else:
-                    logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
+                    #logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
                     fields += arg + ','
             fields = fields[:-1]
             fields = '(' + fields + ')'

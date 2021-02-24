@@ -1,6 +1,7 @@
 # todo load from config data format -> refactor
 from error_handlers import log_error
-
+from qrlogging import logger
+# todo error: tuple index out of range here on line 22
 
 class DataFormatter:
     def __init__(self):

@@ -3,7 +3,10 @@ import psycopg2.sql as sql
 
 from Connector import Connector
 from error_handlers import log_error, retry_log_error
+from qrlogging import logger
+from threading import Lock
 
+lock = Lock()
 
 class PostgresConnector(Connector):
     def __init__(self, db, user, password, host='localhost', port=5432):
@@ -23,12 +26,16 @@ class PostgresConnector(Connector):
     @log_error
     def exec(self, request: str, identifiers: list = None, literals: list = None, result='all'):
         super().exec(request, identifiers, literals, result)
+        request = sql.SQL(request)
         if identifiers:
             identifiers = [sql.Identifier(x) for x in identifiers]
-            request = sql.SQL(request).format(*identifiers)
+            request = request.format(*identifiers)
 
-        self.cursor.execute(request, literals)
-        return self.extract_result(result)
+        logger.warning('POSTGRES EXECUTE: %s with literals %s', request.as_string(self.cursor), literals)
+        with lock:
+            self.cursor.execute(request, literals)
+            data = self.extract_result(result)
+        return data
 
     def extract_result(self, result):
         if result == 'all':

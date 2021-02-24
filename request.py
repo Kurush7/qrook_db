@@ -9,8 +9,9 @@ from Connector import Connector
 
 # accurate - db.operators needed with 'db.' to avoid different namespaces-> isinstance will fail
 
-# todo unsafe warnings - deal with security on raw strings
+# todo unsafe warnings - deal with security on raw strings and others
 
+# todo where not only by field_name (may be dubious)
 
 def request_operators_order(op):
     if op == 'join': return 0
@@ -57,7 +58,7 @@ def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
         conditions.append(condition)
 
     if args:
-        logger.warning("UNSAFE: executing raw select from table %s:  'where %s'", tables[0], args)
+        #logger.warning("UNSAFE: executing raw select from table %s:  'where %s'", tables[0], args)
         for arg in args:
             conditions.append(arg)
 
@@ -88,6 +89,7 @@ class QRequest:
         cond_ops.sort(key=lambda x: request_operators_order(x))
         for ext in [self.conditions[i] for i in cond_ops]:
             self.request += ' ' + ext
+
         data = self.connector.exec(self.request, self.identifiers, self.literals, result=result)
 
         if self.auto_commit:
@@ -98,7 +100,7 @@ class QRequest:
 
     def config_fields(self, *args):
         # todo add support for iterable params
-        self.used_fields = args
+        self.used_fields = list(args)
         return self
 
     def all(self):
@@ -147,6 +149,7 @@ class QRSelect(QRWhere):
             self.used_fields = list(used_fields)
         else:
             self.used_fields = list(table.meta['fields'].keys())
+            # todo unsafe - order may not be the same
 
 
     def group_by(self, *args):
@@ -235,10 +238,10 @@ class QRSelect(QRWhere):
         self.tables.append(table)
 
         if type(cond) == str:
-            logger.warning("UNSAFE: executing raw select from table %s:  'join on %s'",
-                           self.tables[0], cond)
+            #logger.warning("UNSAFE: executing raw select from table %s:  'join on %s'",
+            #               self.tables[0], cond)
             self.identifiers.append(table.meta['table_name'])
-            join_cond = 'join {} on %s' % cond
+            join_cond = ' join {} on %s' % cond
 
         else:
             # todo different imports -> no recognition if not isinstance(cond, op.Eq):
@@ -257,7 +260,7 @@ class QRSelect(QRWhere):
 
         if self.conditions.get('join') is None:
             self.conditions['join'] = ''
-        self.conditions['join'] += join_cond
+        self.conditions['join'] += ' ' + join_cond
         return self
 
 
@@ -356,8 +359,8 @@ class QRInsert(QRequest):
                 identifiers.extend([arg.name])
                 self.used_fields.append(arg.name)
             else:
-                logger.warning('UNSAFE: executing raw returning from table %s with args: %s',
-                               self.tables[0], args)
+                #logger.warning('UNSAFE: executing raw returning from table %s with args: %s',
+                #               self.tables[0], args)
                 # todo here used fields
                 if arg == '*':
                     self.used_fields = list(self.tables[0].meta['fields'].keys())
