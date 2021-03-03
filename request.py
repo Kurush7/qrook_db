@@ -11,7 +11,11 @@ from Connector import Connector
 
 # todo unsafe warnings - deal with security on raw strings and others
 
+# todo insert values -> add array of dicts support
+
 # todo where not only by field_name (may be dubious)
+
+# todo returning - .returning(id, title) -> "select... returning id" - just one!!!!
 
 def request_operators_order(op):
     if op == 'join': return 0
