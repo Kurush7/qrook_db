@@ -1,9 +1,7 @@
 import logging
-# todo use configs for filename and logger name
-
 
 _log_format = "%(asctime)s [%(levelname)s]: [%(app)s, %(name)s] - " \
-         "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
+              "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
 
 
 class CustomFormatter(logging.Formatter):
@@ -43,17 +41,13 @@ def get_stream_handler():
     return sh
 
 
-def default_logger():
-    '''fast setup
-    logging.basicConfig(filename="qrook_app.log", level=logging.INFO,
-                        format = "%(asctime)s - [%(levelname)s] - %(app)s - %(name)s -"\
-                         "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s")'''
-
-    logger = logging.getLogger("default")
+def create_logger(name='default'):
+    logger = logging.getLogger(name)
     logger.addHandler(get_file_handler())
     logger.addHandler(get_stream_handler())
-    logger = logging.LoggerAdapter(logger, {"app": "qrook"})
+    logger = logging.LoggerAdapter(logger, {'app': 'qrook'})
+    logger.setLevel('INFO')
     return logger
 
 
-logger = default_logger()
+logger = create_logger()

@@ -1,7 +1,25 @@
-# todo load from config data format -> refactor
+from abc import ABCMeta, abstractmethod, abstractproperty
+
+
 from error_handlers import log_error
 from qrlogging import logger
-# todo error: tuple index out of range here on line 22
+
+class IDataFormatter:
+    """
+    Abstract class for db-connections
+    """
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def format_data(self, data, used_fields, result_type):
+        """
+        :param query_str: request string, containing {} for identifiers and %s for literals
+        :param identifiers: iterable of identifiers
+        :param literals: iterable of literals
+        :param result: one of 'all' and 'one' - amount of rows to return from query results
+        :return: for result='all': [(1, 2, 3), ...] or []
+                 for result='one': (1,2,3) or None
+        """
 
 class DataFormatter:
     def __init__(self):

@@ -4,7 +4,7 @@ from data_formatter import defaultDataFormatter
 import operators as op
 from data import *
 from error_handlers import *
-from Connector import Connector
+from IConnector import IConnector
 
 
 # accurate - db.operators needed with 'db.' to avoid different namespaces-> isinstance will fail
@@ -71,7 +71,7 @@ def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
 
 @log_class(log_error_default_self)
 class QRequest:
-    def __init__(self, connector: Connector, table: QRTable = None, request: str = '',
+    def __init__(self, connector: IConnector, table: QRTable = None, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         self.connector = connector
         self.request = request
@@ -116,7 +116,7 @@ class QRequest:
 
 @log_class(log_error_default_self)
 class QRWhere(QRequest):
-    def __init__(self, connector: Connector, table: QRTable, request: str = '',
+    def __init__(self, connector: IConnector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         super().__init__(connector, table, request, identifiers, literals, auto_commit)
 
@@ -146,7 +146,7 @@ class QRWhere(QRequest):
 
 @log_class(log_error_default_self, exceptions=['all', 'one'])
 class QRSelect(QRWhere):
-    def __init__(self, connector: Connector, table: QRTable, request: str = '',
+    def __init__(self, connector: IConnector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, used_fields=None):
         super().__init__(connector, table, request, identifiers, literals, False)
         if used_fields:
@@ -250,7 +250,7 @@ class QRSelect(QRWhere):
         else:
             # todo different imports -> no recognition if not isinstance(cond, op.Eq):
             #    raise Exception('join: op.Eq instance expected, got %s' % type(cond))
-            if not cond.duos:
+            if not cond.has_both_args():
                 raise Exception('join: op.Eq contains only one instance')
             if not isinstance(cond.arg1, QRField) or not isinstance(cond.arg2, QRField):
                 raise Exception('join: op.Eq operands must be QRField instances')
@@ -270,7 +270,7 @@ class QRSelect(QRWhere):
 
 @log_class(log_error_default_self)
 class QRUpdate(QRWhere):
-    def __init__(self, connector: Connector, table: QRTable, request: str = '',
+    def __init__(self, connector: IConnector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         super().__init__(connector, table, request, identifiers, literals, auto_commit)
 
@@ -296,7 +296,7 @@ class QRUpdate(QRWhere):
 
 @log_class(log_error_default_self)
 class QRInsert(QRequest):
-    def __init__(self, connector: Connector, table: QRTable, request: str = '',
+    def __init__(self, connector: IConnector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         super().__init__(connector, table, request, identifiers, literals, auto_commit)
         self.column_cnt = len(identifiers) - 1

@@ -1,20 +1,33 @@
 import psycopg2
 import psycopg2.sql as sql
 
-from Connector import Connector
+from IConnector import IConnector
 from error_handlers import log_error, retry_log_error
 from qrlogging import logger
 from threading import Lock
 
-lock = Lock()
 
-class PostgresConnector(Connector):
+# IConnector realization for Postgres database
+class PostgresConnector(IConnector):
     def __init__(self, db, user, password, host='localhost', port=5432):
-        super().__init__(db, user, password, host, port)
+        """
+        configure connection
+        :param db: db-name
+        """
+        self.db = db
+        self.user = user
+        self.password = password
+        self.host = host
+        self.port = port
+        self.connected = False
+
+        self.conn = None
+        self.lock = Lock()
+
         self.__connect()
 
     def __del__(self):
-        if self.__dict__.get('conn'):
+        if self.conn:
             self.conn.close()
 
     @retry_log_error()
@@ -24,15 +37,14 @@ class PostgresConnector(Connector):
         self.cursor = self.conn.cursor()
 
     @log_error
-    def exec(self, request: str, identifiers: list = None, literals: list = None, result='all'):
-        super().exec(request, identifiers, literals, result)
+    def exec(self, request: str, identifiers=None, literals=None, result='all'):
         request = sql.SQL(request)
         if identifiers:
             identifiers = [sql.Identifier(x) for x in identifiers]
             request = request.format(*identifiers)
 
-        logger.warning('POSTGRES EXECUTE: %s with literals %s', request.as_string(self.cursor), literals)
-        with lock:
+        logger.info('POSTGRES EXECUTE: %s with literals %s', request.as_string(self.cursor), literals)
+        with self.lock:
             self.cursor.execute(request, literals)
             data = self.extract_result(result)
         return data
@@ -42,13 +54,16 @@ class PostgresConnector(Connector):
             return self.cursor.fetchall()
         elif result == 'one':
             return self.cursor.fetchone()
+        elif result is not None:
+            logger.warning("unexpected 'result' value: %s" % result)
         return None
 
     @log_error
     def table_info(self):
-        request = "select table_name, column_name, data_type  " \
-                  "from information_schema.columns " \
-                  "where table_schema = 'public'"
+        request = '''select table_name, column_name, data_type
+                     from information_schema.columns
+                     where table_schema = 'public';'''
+
         data = self.exec(request, result='all')
         info = {}
         for d in data:
