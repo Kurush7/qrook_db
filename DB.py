@@ -1,42 +1,53 @@
-from request import *
-from PostgresConnector import *
-from error_handlers import *
-from data import *
+import DI
 import sys
-from data_formatter import defaultDataFormatter
-
+from request import *
 # todo add exec raw query
 # todo add support for nested queries
 # todo add select(books.id) parsing -> extract table from ONLY datafield
 
-@log_class(log_error)
-class DB:
-    @log_error
 
-    # format: one of 'list', 'dict'
-    def __init__(self, connector_type, *conn_args, format=None, **conn_kwargs):
-        self.meta = dict()
-        if connector_type == 'postgres':
-            self.meta['connector'] = PostgresConnector(*conn_args, **conn_kwargs)
-        else:
-            raise Exception('unknown connector type')
+class DBCreator:
+    """
+    Class responsible for objects creation
+    """
 
-        if format is not None:
-            defaultDataFormatter.format = format
+    # todo db is facade... use some query_aggregator instead
+    def __init__(self, conn: IConnector, db):
+        """
+        :param conn: active connection for tables to use
+        :param db: todo
+        """
+        self.conn = conn
+        self.db = db
 
-    # source is object with __dict__ field or a module name (with 'in_module' flag up)
     def create_data(self, source=None, in_module=False):
-        tables = self.meta['connector'].table_info()
+        tables = self.conn.table_info()
         t = dict()
 
         for name, field in tables.items():
-            t[name] = QRTable(name, field, self)
+            t[name] = QRTable(name, field, self.db)
 
         self.__dict__.update(t)
         if source:
             if in_module:
                 source = sys.modules[source]
             source.__dict__.update(t)
+
+
+@log_class(log_error)
+class DB:
+    @log_error
+    # format: one of 'list', 'dict'
+    # todo rename format param
+    def __init__(self, connector_type, *conn_args, format=None, **conn_kwargs):
+        DI.register(format, connector_type, *conn_args, **conn_kwargs)
+
+        self.meta = dict()
+        self.meta['connector'] = inject.instance(IConnector)
+
+    # source is object with __dict__ field or a module name (with 'in_module' flag up)
+    def create_data(self, source=None, in_module=False):
+        DBCreator(self.meta['connector'], self).create_data(source, in_module)
 
     def commit(self):
         self.meta['connector'].commit()

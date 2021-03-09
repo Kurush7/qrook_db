@@ -1,7 +1,7 @@
 import psycopg2
 import psycopg2.sql as sql
 
-from IConnector import IConnector
+from IConnector import IConnector, DBResult
 from error_handlers import log_error, retry_log_error
 from qrlogging import logger
 from threading import Lock
@@ -47,7 +47,7 @@ class PostgresConnector(IConnector):
         with self.lock:
             self.cursor.execute(request, literals)
             data = self.extract_result(result)
-        return data
+        return DBResult(data, result)
 
     def extract_result(self, result):
         if result == 'all':
@@ -66,7 +66,7 @@ class PostgresConnector(IConnector):
 
         data = self.exec(request, result='all')
         info = {}
-        for d in data:
+        for d in data.get_data():
             if not info.get(d[0]):
                 info[d[0]] = []
             info[d[0]].append((d[1], d[2]))

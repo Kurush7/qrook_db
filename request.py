@@ -1,10 +1,11 @@
 from collections.abc import Iterable
+import inject
 
-from data_formatter import defaultDataFormatter
 import operators as op
 from data import *
 from error_handlers import *
 from IConnector import IConnector
+from data_formatter import IDataFormatter
 
 
 # accurate - db.operators needed with 'db.' to avoid different namespaces-> isinstance will fail
@@ -71,6 +72,8 @@ def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
 
 @log_class(log_error_default_self)
 class QRequest:
+    data_formatter = inject.attr(IDataFormatter)
+
     def __init__(self, connector: IConnector, table: QRTable = None, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         self.connector = connector
@@ -95,12 +98,13 @@ class QRequest:
             self.request += ' ' + ext
 
         data = self.connector.exec(self.request, self.identifiers, self.literals, result=result)
+        data.set_used_fields(self.used_fields)
 
         if self.auto_commit:
             self.connector.commit()
 
         return True if (result is None) else \
-            defaultDataFormatter.format_data(data, self.used_fields, result)
+            self.data_formatter.format_data(data)
 
     def config_fields(self, *args):
         # todo add support for iterable params
@@ -309,12 +313,14 @@ class QRInsert(QRequest):
         for ext in [self.conditions[i] for i in cond_ops]:
             self.request += ' ' + ext
         data = self.connector.exec(self.request, self.identifiers, self.literals, result=result)
+        data.set_used_fields(self.used_fields)
+
         if self.auto_commit:
             self.connector.commit()
 
         if result is None:
             return True
-        return defaultDataFormatter.format_data(data, self.used_fields, result)
+        return self.data_formatter.format_data(data)
 
     def values(self, *args):
         if request_operators_order('values') < self.cur_order:

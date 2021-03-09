@@ -14,8 +14,7 @@ class IConnector:
         :param identifiers: iterable of identifiers
         :param literals: iterable of literals
         :param result: one of 'all' and 'one' - amount of rows to return from query results
-        :return: for result='all': [(1, 2, 3), ...] or []
-                 for result='one': (1,2,3) or None
+        :return: DBResult instance
         """
 
     @abstractmethod
@@ -30,3 +29,37 @@ class IConnector:
         """
         commit changes to database
         """
+
+
+# todo are abstracts needed?
+# todo add about success
+class DBResult:
+    """
+    class for db-query data.
+    """
+
+    def __init__(self, data, result_type):
+        self.result_type = result_type
+        self.data = data
+        self.used_fields = []
+
+    def set_used_fields(self, used_fields):
+        self.used_fields = used_fields
+
+    def get_data(self):
+        return self.data
+
+    def get_result_type(self):
+        return self.result_type
+
+    def get_used_fields(self):
+        return self.used_fields
+
+    def is_one_result(self):
+        return self.result_type == 'one'
+
+    def is_all_result(self):
+        return self.result_type == 'all'
+
+    def is_no_result(self):
+        return self.result_type is None

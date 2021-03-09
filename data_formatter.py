@@ -1,8 +1,7 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
-
-
 from error_handlers import log_error
-from qrlogging import logger
+from IConnector import DBResult
+
 
 class IDataFormatter:
     """
@@ -11,7 +10,7 @@ class IDataFormatter:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def format_data(self, data, used_fields, result_type):
+    def format_data(self, data: DBResult):
         """
         :param query_str: request string, containing {} for identifiers and %s for literals
         :param identifiers: iterable of identifiers
@@ -21,33 +20,32 @@ class IDataFormatter:
                  for result='one': (1,2,3) or None
         """
 
-class DataFormatter:
-    def __init__(self):
-        self.format = 'list'
 
-    # result type -> 'all', 'one'
+class ListDataFormatter(IDataFormatter):
+    def format_data(self, data: DBResult):
+        return data.get_data()
+
+
+class DictDataFormatter(IDataFormatter):
     @log_error
-    def format_data(self, data, used_fields, result_type):
-        if result_type is None or data is None:
+    def format_data(self, data: DBResult):
+        if data.is_no_result():  # todo check for None data was here long ago... needed?
             return None
 
-        if self.format == 'list':
-            return data
-        elif self.format == 'dict':
-            res = []
-            n = len(used_fields)
-            if result_type == 'one':
-                return {used_fields[i]: data[i] for i in range(n)}
-            else:
-                for d in data:
-                    res.append({used_fields[i]: d[i] for i in range(n)})
-                return res
-
-    def set_list_format(self):
-        self.format = 'list'
-
-    def set_dict_format(self):
-        self.format = 'dict'
+        used_fields = data.get_used_fields()
+        dt = data.get_data()
+        res = []
+        n = len(used_fields)
+        if data.is_one_result():
+            return {used_fields[i]: dt[i] for i in range(n)}
+        elif data.is_all_result():
+            for d in dt:
+                res.append({used_fields[i]: d[i] for i in range(n)})
+            return res
+        else:
+            raise Exception("unexpected data result: neither one nor all")
 
 
-defaultDataFormatter = DataFormatter()
+# # todo add implementation
+# class StructDataFormatter(IDataFormatter):
+#     pass
