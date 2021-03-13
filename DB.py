@@ -1,6 +1,7 @@
 import DI
 import sys
 from request import *
+from request_new import *
 # todo add exec raw query
 # todo add support for nested queries
 # todo add select(books.id) parsing -> extract table from ONLY datafield
@@ -57,69 +58,14 @@ class DB:
         return QRequest(self.meta['connector'], request=raw_query)
 
     def select(self, table: QRTable, *args):
-        identifiers, literals, used_fields = [], [], []
-        if len(args) == 0:
-            own_args = list(table.meta['fields'].values())
-        else:
-            own_args = args
-
-        fields = ''
-        for arg in own_args:
-            if isinstance(arg, QRField):
-                fields += '{}.{},'
-                identifiers.extend([arg.table_name, arg.name])
-                used_fields.append(arg.name)
-            else:
-                #logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
-                fields += arg + ','
-                used_fields.append(arg)
-        fields = fields[:-1]
-
-        request = 'select ' + fields + ' from {}'
-        table_name = table.meta['table_name']
-        identifiers += [table_name]
-
-        return QRSelect(self.meta['connector'], table, request,
-                        identifiers, literals, used_fields=used_fields)
+        return QRSelect(self.meta['connector'], table, *args)
 
     def delete(self, table: QRTable, auto_commit=False):
-        identifiers, literals = [], []
-
-        request = 'delete from {}'
-        table_name = table.meta['table_name']
-        identifiers += [table_name]
-
-        return QRWhere(self.meta['connector'], table, request, identifiers,
-                       literals, auto_commit)
+        return QRDelete(self.meta['connector'], table, auto_commit)
 
     def update(self, table: QRTable, auto_commit=False):
-        identifiers, literals = [], []
-
-        request = 'update {}'
-        table_name = table.meta['table_name']
-        identifiers += [table_name]
-
-        return QRUpdate(self.meta['connector'], table, request, identifiers,
-                             literals, auto_commit)
+        return QRUpdate(self.meta['connector'], table, auto_commit)
 
     def insert(self, table: QRTable, *args, auto_commit=False):
-        identifiers, literals = [], []
-        if len(args) == 0:
-            fields = ''
-        else:
-            fields = ''
-            for arg in args:
-                if isinstance(arg, QRField):
-                    fields += '{},'
-                    identifiers.extend([arg.name])
-                else:
-                    #logger.warning('UNSAFE: executing raw select from table %s with args: %s', table, args)
-                    fields += arg + ','
-            fields = fields[:-1]
-            fields = '(' + fields + ')'
+        return QRInsert(self.meta['connector'], table, *args, auto_commit=auto_commit)
 
-        request = 'insert into {} ' + fields + ' values '
-        table_name = table.meta['table_name']
-        identifiers = [table_name] + identifiers
-
-        return QRInsert(self.meta['connector'], table, request, identifiers, literals, auto_commit)

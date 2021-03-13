@@ -1,0 +1,293 @@
+from abc import ABCMeta, abstractmethod, abstractproperty
+from data import *
+import operators as op
+from collections.abc import Iterable
+
+
+def get_field(field_name, tables) -> QRField:
+    cnt = 0
+    field = None
+    for t in tables:
+        if t.__dict__.get(field_name) is not None:
+            if cnt:
+                raise Exception('ambiguous attribute name %s' % field_name)
+            field = t.__dict__[field_name]
+    if field is None:
+        raise Exception('attribute %s not found' % field_name)
+    return field
+
+
+def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
+    identifiers = []
+    literals = []
+    conditions = []
+    for field_name, condition in kwargs.items():
+        if not isinstance(condition, op.QROperator):
+            condition = op.Eq(condition)
+
+        condition, lits = condition.condition(disable_full_name)
+        field = get_field(field_name, tables)
+
+        if disable_full_name:
+            identifiers.extend([field.name])
+        else:
+            identifiers.extend([field.table_name, field.name])
+        literals.extend(lits)
+        conditions.append(condition)
+
+    if args:
+        for arg in args:
+            if isinstance(arg, str):
+                conditions.append(arg)
+
+    return identifiers, literals, conditions
+
+
+class QueryPartData:
+    def __init__(self, identifiers, literals, query: str):
+        self.identifiers = identifiers
+        self.literals = literals
+        self.query = query
+
+
+class IQueryPart:
+    """
+    Abstract class for db-queries like select, update etc.
+    """
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def add_data(self, *args, **kwargs) -> QueryPartData:
+        """todo return data"""
+
+    @abstractmethod
+    def get_name(self):
+        """todo return name"""
+
+    @abstractmethod
+    def get_data(self) -> QueryPartData:
+        """todo return data"""
+
+    @abstractmethod
+    def add_tables(self, tables):
+        """todo return data"""
+    @abstractmethod
+    def set_tables(self, tables):
+        """todo return data"""
+
+class QueryPart(IQueryPart):
+    def __init__(self, name: str, command: str = None, tables=None):
+        if tables is None:
+            tables = []
+        if command is None:
+            command = name
+        self.tables = tables
+        self.command = command
+        self.identifiers, self.literals = [], []
+        self.query = None
+        self.name = name
+
+    def add_conditions(self, conditions, joint=' '):
+        for cond in conditions:
+            if self.query is None:
+                self.query = self.command + ' ' + cond
+            else:
+                self.query += ' ' + joint + ' ' + cond
+
+    def get_data(self):
+        return QueryPartData(self.identifiers, self.literals, self.query if self.query else '')
+
+    def get_name(self):
+        return self.name
+
+    def add_data(self, qr_joint, *args, **kwargs):
+        identifiers, literals, conditions = parse_request_args(self.tables, *args, **kwargs)
+        self.identifiers.extend(identifiers)
+        self.literals.extend(literals)
+
+        self.add_conditions(conditions, joint=qr_joint)
+
+    def add_tables(self, *tables):
+        self.tables += tables
+
+    def set_tables(self, tables):
+        self.tables = tables
+
+class QRWhere(QueryPart):
+    def __init__(self, tables=None):
+        super().__init__('where', tables=tables)
+
+    def add_data(self, *args, **kwargs):
+        op = kwargs.get('bool')
+        if op is not None:
+            kwargs.pop('bool')
+        if op not in ['and', 'or']:
+            op = 'and'
+
+        super(QueryPart, self).add_data(qr_joint=op, *args, **kwargs)
+
+class QRGroupBy(QueryPart):
+    def __init__(self, tables=None):
+        super().__init__(name='group_by', command='group by', tables=tables)
+
+    def add_data(self, *args, **kwargs):
+        for field in args:
+            self.identifiers.append(field.name)
+        self.add_conditions(['{}'] * len(args), joint=',')
+
+class QRHaving(QueryPart):
+    def __init__(self, tables=None):
+        super().__init__('having', tables=tables)
+
+    def add_data(self, *args, **kwargs):
+        super().add_data(qr_joint=',', *args, **kwargs)
+
+class QROrderBy(QueryPart):
+    def __init__(self, tables=None):
+        super().__init__(name='order_by', command='order by', tables=tables)
+
+    def add_data(self, *args, **kwargs):
+        sort_type = 'asc'
+        if kwargs.get('desc') == True:
+            sort_type = 'desc'
+
+        for field in args:
+            self.identifiers.append(field.name)
+
+        self.add_conditions(['{} ' + sort_type] * len(args), joint=',')
+
+class QRLimit(QueryPart):
+    def __init__(self, tables=None):
+        super().__init__('limit', tables=tables)
+
+    def add_data(self, *args, **kwargs):
+        if len(kwargs) > 0 or len(args) != 1:
+            raise Exception('Limit condition error: only one integer expected')
+        n = args[0]
+        if not isinstance(n, int):
+            raise Exception('Integer expected as a limit condition param')
+
+        self.literals.append(n)
+        self.query = ' limit %s '
+
+class QROffset(QueryPart):
+    def __init__(self, tables=None):
+        super().__init__('offset', tables=tables)
+
+    def add_data(self, *args, **kwargs):
+        if len(kwargs) > 0 or len(args) != 1:
+            raise Exception('Offset condition error: only one integer expected')
+        n = args[0]
+        if not isinstance(n, int):
+            raise Exception('Offset expected as a limit condition param')
+
+        self.literals.append(n)
+        self.query = ' offset %s '
+
+class QRJoin(QueryPart):
+    def __init__(self, tables=None):
+        super().__init__('join', tables=tables)
+
+    def add_data(self, *args, **kwargs):
+        if len(kwargs) > 0 or len(args) != 2:
+            raise Exception('Join condition error: two conditional params')
+        table, cond = args[0], args[1]
+        self.add_tables(table)
+        # todo accurate with adding - links working for all query-parts!
+
+        if type(cond) == str:
+            self.identifiers.append(table.meta['table_name'])
+            join_cond = '{} on %s' % cond
+
+        else:
+            # todo different imports -> no recognition if not isinstance(cond, op.Eq):
+            #    raise Exception('join: op.Eq instance expected, got %s' % type(cond))
+            if not cond.has_both_args():
+                raise Exception('join: op.Eq contains only one instance')
+            if not isinstance(cond.arg1, QRField) or not isinstance(cond.arg2, QRField):
+                raise Exception('join: op.Eq operands must be QRField instances')
+            if cond.arg1.table not in self.tables or cond.arg1.table not in self.tables:
+                raise Exception('join: wrong attribute\'s relations')
+
+            self.identifiers.extend([table.meta['table_name'],
+                                     cond.arg1.table_name, cond.arg1.name,
+                                     cond.arg2.table_name, cond.arg2.name])
+            join_cond = '{} on {}.{} = {}.{}'
+
+        self.add_conditions([join_cond], joint='join')
+
+class QRSet(QueryPart):
+    def __init__(self, tables=None):
+        super().__init__('set', tables=tables)
+
+    def add_data(self, *args, **kwargs):
+        # todo here stuff like x>10 possible... in set - no sense
+        identifiers, literals, conditions = parse_request_args(self.tables,
+                                                               *args, **kwargs, disable_full_name=True)
+        self.identifiers.extend(identifiers)
+        self.literals.extend(literals)
+
+        self.add_conditions(conditions, joint=',')
+
+class QRValues(QueryPart):
+    def __init__(self, column_cnt, tables=None):
+        super().__init__('values', tables=tables)
+        self.column_cnt = column_cnt
+
+    def add_data(self, *args, **kwargs):
+        literals = []
+        value_sets = 0
+
+        for arg in args:
+            if not isinstance(arg, Iterable):
+                raise Exception('insert values: iterable expected')
+            flag = False
+            for a in arg:
+                if isinstance(a, Iterable) and not isinstance(a, str):
+                    if len(a) != self.column_cnt:
+                        raise Exception('insert values: wrong column count')
+                    literals.extend(a)
+                    value_sets += 1
+                else:
+                    literals.append(a)
+                    flag = True
+            if flag:
+                value_sets += 1
+
+        single = '%s,' * self.column_cnt
+        single = '(' + single[:-1] + ')'
+        query = ', '.join([single] * value_sets)
+
+        if self.query is None:
+            self.query = query
+        else:
+            self.query += ', ' + query
+        self.literals.extend(literals)
+
+class QRReturning(QueryPart):
+    def __init__(self, used_fields, tables=None):
+        super().__init__('returning', tables=tables)
+        self.column_cnt = len(self.identifiers) - 1
+        self.used_fields = used_fields
+
+    def add_data(self, *args, **kwargs):
+        identifiers = []
+        query = []
+
+        for arg in args:
+            if isinstance(arg, QRField):
+                query += ['{}']
+                identifiers.extend([arg.name])
+                self.used_fields.append(arg.name)
+            else:
+                # logger.warning('UNSAFE: executing raw returning from table %s with args: %s',
+                #               self.tables[0], args)
+                # todo here used fields
+                if arg == '*':
+                    self.used_fields.extend(list(self.tables[0].meta['fields'].keys()))
+                else:
+                    self.used_fields.append(arg)
+                query += [arg]
+
+        self.identifiers.extend(identifiers)
+        self.add_conditions(query, joint=',')

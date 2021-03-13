@@ -26,11 +26,11 @@ def main():
         .join(authors, op.Eq(books_authors.author_id, authors.id)).all()
     print(data[:10])
 
-    data = books.select(books.id).where(id=1).where(bool='or', id=2).all()
+    data = books.select(books.id).where(id=1).where(bool='or', id=2).limit(10).all()
     print('with or:', data)
 
-    #ok = DB.delete(events, auto_commit=True).exec()
-    #print(ok)
+    # ok = DB.delete(events, auto_commit=True).where(id=1).exec()
+    # print(ok)
 
     from datetime import datetime
     t = datetime.now().time()

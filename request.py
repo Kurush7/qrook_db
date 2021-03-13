@@ -149,7 +149,7 @@ class QRWhere(QRequest):
 
 
 @log_class(log_error_default_self, exceptions=['all', 'one'])
-class QRSelect(QRWhere):
+class QRSelectOld(QRWhere):
     def __init__(self, connector: IConnector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, used_fields=None):
         super().__init__(connector, table, request, identifiers, literals, False)
@@ -273,7 +273,7 @@ class QRSelect(QRWhere):
 
 
 @log_class(log_error_default_self)
-class QRUpdate(QRWhere):
+class QRUpdateOld(QRWhere):
     def __init__(self, connector: IConnector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         super().__init__(connector, table, request, identifiers, literals, auto_commit)
@@ -299,7 +299,7 @@ class QRUpdate(QRWhere):
 
 
 @log_class(log_error_default_self)
-class QRInsert(QRequest):
+class QRInsertOld(QRequest):
     def __init__(self, connector: IConnector, table: QRTable, request: str = '',
                  identifiers=None, literals=None, auto_commit=False):
         super().__init__(connector, table, request, identifiers, literals, auto_commit)
