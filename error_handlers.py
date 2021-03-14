@@ -48,7 +48,7 @@ def retry_log_error(retry_delay=5):
                     s = f(*args, **kwargs)
                     return s
                 except Exception as e:
-                    logger.warning(str(e) + '; retrying in 5s...')
+                    logger.warning(str(e) + '; retrying in %s s...' % retry_delay)
                     time.sleep(retry_delay)
 
         return wrapper

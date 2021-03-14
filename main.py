@@ -22,8 +22,9 @@ def main():
     print('limit & offset', data)
 
     data = books.select(authors.id, books.id)\
-        .join(books_authors, 'books_authors.book_id = books.id')\
+        .join(books_authors, op.Eq(books_authors.book_id, books.id))\
         .join(authors, op.Eq(books_authors.author_id, authors.id)).all()
+        # .join(books_authors, 'books_authors.book_id = books.id')\
     print(data[:10])
 
     data = books.select(books.id).where(id=1).where(bool='or', id=2).limit(10).all()
@@ -59,6 +60,9 @@ def main():
     data = DB.exec('select * from get_book_authors(1) as f(id int, name varchar)').config_fields('id', 'name').all()
     print(data)
 
+
+    data = DB.select(events, events.id, events.id).all()
+    print(data)
 
 if __name__ == '__main__':
     main()

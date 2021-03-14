@@ -2,11 +2,9 @@ import DI
 import sys
 from query import *
 
+# todo-list throughout the orm-project
 # important
 # todo errors logging and exceptioning
-# todo unsafe warnings - deal with security on raw strings and others
-
-# todo where not only by field_name (may be dubious)
 # todo tests
 
 # middle
@@ -16,6 +14,7 @@ from query import *
 # todo add support for nested queries
 # todo add select(books.id) parsing -> extract table from ONLY datafield
 # todo add returning part for delete query (and update?)
+# todo add StructDataFormatter
 
 
 class DBQueryAggregator:
@@ -36,6 +35,7 @@ class DBQueryAggregator:
 
     def insert(self, table: QRTable, *args, auto_commit=False, **kwargs):
         return QRInsert(self.connector, table, *args, auto_commit=auto_commit)
+
 
 class DBCreator:
     """
@@ -66,7 +66,6 @@ class DBCreator:
 
 @log_class(log_error)
 class DB:
-    @log_error
     def __init__(self, connector_type, *conn_args, format_type=None, **conn_kwargs):
         """
         :param connector_type: now only 'postgres' is supported

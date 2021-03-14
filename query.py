@@ -4,6 +4,7 @@ from IConnector import IConnector
 from data_formatter import IDataFormatter
 
 from query_parts import *
+from symbols import *
 
 
 class IQRQuery:
@@ -29,7 +30,6 @@ class IQRQuery:
         """shortcut for exec with result='one'"""
 
 
-@log_class(log_error_default_self)
 class QRQuery(IQRQuery):
     data_formatter = inject.attr(IDataFormatter)
 
@@ -55,7 +55,6 @@ class QRQuery(IQRQuery):
     def __create_method(self, qp: IQueryPart):
         n = len(self.query_parts)
 
-        @log_error_default_self
         def f(*args, **kwargs):
             if self.cur_order > n:
                 raise Exception('select: wrong operators sequence')
@@ -97,7 +96,7 @@ class QRQuery(IQRQuery):
 @log_class(log_error_default_self)
 class QRSelect(QRQuery):
     def __init__(self, connector: IConnector, table: QRTable, *args):
-        identifiers, literals, used_fields = [], [], []
+        identifiers, literals, used_fields = [], [], dict()
         if len(args) == 0:
             own_args = list(table.meta['fields'].values())
         else:
@@ -106,15 +105,17 @@ class QRSelect(QRQuery):
         fields = ''
         for arg in own_args:
             if isinstance(arg, QRField):
-                fields += '{}.{},'
+                fields += '%s.%s,' % (QRDB_IDENTIFIER, QRDB_IDENTIFIER)
                 identifiers.extend([arg.table_name, arg.name])
-                used_fields.append(arg.name)
-            else:
+                self.add_used_field(used_fields, {'name': arg.name, 'table': arg.table_name})
+            elif isinstance(arg, str):  # todo else warning
                 fields += arg + ','
-                used_fields.append(arg)
+                self.add_used_field(used_fields, {'name': arg})
         fields = fields[:-1]
 
-        query = 'select ' + fields + ' from {}'
+        used_fields = [k for k, v in used_fields.items() if not v.get('expired')]
+
+        query = 'select ' + fields + ' from ' + QRDB_IDENTIFIER
         table_name = table.meta['table_name']
         identifiers += [table_name]
 
@@ -132,13 +133,32 @@ class QRSelect(QRQuery):
         self._add_query_part(QRLimit(self.tables))
         self._add_query_part(QROffset(self.tables))
 
+    def add_used_field(self, fields, a):
+        x = fields.get(a['name'])
+        if x is not None:
+            if x.get('table') is None or a.get('table') is None:
+                raise Exception('two identical return fields set for select query')
+            elif x.get('table') == a.get('table'):
+                raise Exception('two identical return fields set for select query')
+            elif x.get('expired') is None:
+                fields[x['table'] + '_' + x['name']] = x.copy()
+                fields[x['name']]['expired'] = True
+                fields[x['name']]['tables'] = [x['table'], a['table']]
+            else:
+                if a['table'] in fields[a['name']]['tables']:
+                    raise Exception('two identical return fields set for select query')
+                fields[x['name']]['tables'].append(a['table'])
+            fields[a['table'] + '_' + a['name']] = a
+        else:
+            fields[a['name']] = a
+
 
 @log_class(log_error_default_self)
 class QRUpdate(QRQuery):
     def __init__(self, connector: IConnector, table: QRTable, auto_commit=False):
         identifiers, literals = [], []
 
-        query = 'update {}'
+        query = 'update ' + QRDB_IDENTIFIER
         table_name = table.meta['table_name']
         identifiers += [table_name]
 
@@ -156,7 +176,7 @@ class QRDelete(QRQuery):
     def __init__(self, connector: IConnector, table: QRTable, auto_commit=False):
         identifiers, literals = [], []
 
-        query = 'delete from {}'
+        query = 'delete from ' + QRDB_IDENTIFIER
         table_name = table.meta['table_name']
         identifiers += [table_name]
 
@@ -178,14 +198,14 @@ class QRInsert(QRQuery):
             fields = ''
             for arg in args:
                 if isinstance(arg, QRField):
-                    fields += '{},'
+                    fields += QRDB_IDENTIFIER + ' ,'
                     identifiers.extend([arg.name])
                 else:
                     fields += arg + ','
             fields = fields[:-1]
             fields = '(' + fields + ')'
 
-        query = 'insert into {} ' + fields + ' values '
+        query = 'insert into ' + QRDB_IDENTIFIER + ' ' + fields + ' values '
         table_name = table.meta['table_name']
         identifiers = [table_name] + identifiers
 
@@ -196,6 +216,7 @@ class QRInsert(QRQuery):
     def configure_query_parts(self):
         self._add_query_part(QRValues(tables=self.tables, column_cnt=len(self.identifiers) - 1))
         self._add_query_part(QRReturning(self.used_fields, self.tables))
+
 
 @log_class(log_error_default_self)
 class QRExec(QRQuery):

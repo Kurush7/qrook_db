@@ -27,7 +27,6 @@ class ListDataFormatter(IDataFormatter):
 
 
 class DictDataFormatter(IDataFormatter):
-    @log_error
     def format_data(self, data: DBResult):
         if data.is_no_result():  # todo check for None data was here long ago... needed?
             return None
@@ -44,8 +43,3 @@ class DictDataFormatter(IDataFormatter):
             return res
         else:
             raise Exception("unexpected data result: neither one nor all")
-
-
-# # todo add implementation
-# class StructDataFormatter(IDataFormatter):
-#     pass

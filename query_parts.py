@@ -35,7 +35,7 @@ def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
     literals = []
     conditions = []
     for field_name, condition in kwargs.items():
-        if not isinstance(condition, op.QROperator):
+        if not isinstance(condition, op.IQROperator):
             condition = op.Eq(condition)
 
         condition, lits = condition.condition(disable_full_name)
@@ -48,11 +48,16 @@ def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
         literals.extend(lits)
         conditions.append(condition)
 
-    if args:
-        for arg in args:
-            if isinstance(arg, str):
-                conditions.append(arg)
-
+    for arg in args:
+        # todo else warning of unknown
+        if isinstance(arg, str):
+            conditions.append(arg)
+        elif isinstance(arg, op.Eq):
+            if arg.has_both_args():
+                condition, _ = arg.condition(disable_full_name)
+                ids = arg.arg1, arg.arg2
+                identifiers.extend(ids)
+                conditions.append(condition)
     return identifiers, literals, conditions
 
 
