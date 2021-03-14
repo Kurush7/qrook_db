@@ -1,22 +1,51 @@
 import DI
 import sys
-from request import *
-from request_new import *
-# todo add exec raw query
+from query import *
+
+# important
+# todo errors logging and exceptioning
+# todo unsafe warnings - deal with security on raw strings and others
+
+# todo where not only by field_name (may be dubious)
+# todo tests
+
+# middle
+# todo insert values -> add array of dicts support
+
+# future
 # todo add support for nested queries
 # todo add select(books.id) parsing -> extract table from ONLY datafield
+# todo add returning part for delete query (and update?)
 
+
+class DBQueryAggregator:
+    def __init__(self, conn: IConnector):
+        self.connector = conn
+
+    def exec(self, raw_query):
+        return QRExec(self.connector, raw_query)
+
+    def select(self, table: QRTable, *args, **kwargs):
+        return QRSelect(self.connector, table, *args)
+
+    def delete(self, table: QRTable, auto_commit=False, *args, **kwargs):
+        return QRDelete(self.connector, table, auto_commit)
+
+    def update(self, table: QRTable, auto_commit=False, *args, **kwargs):
+        return QRUpdate(self.connector, table, auto_commit)
+
+    def insert(self, table: QRTable, *args, auto_commit=False, **kwargs):
+        return QRInsert(self.connector, table, *args, auto_commit=auto_commit)
 
 class DBCreator:
     """
     Class responsible for objects creation
     """
 
-    # todo db is facade... use some query_aggregator instead
-    def __init__(self, conn: IConnector, db):
+    def __init__(self, conn: IConnector, db: DBQueryAggregator):
         """
         :param conn: active connection for tables to use
-        :param db: todo
+        :param db: query aggregator
         """
         self.conn = conn
         self.db = db
@@ -38,34 +67,38 @@ class DBCreator:
 @log_class(log_error)
 class DB:
     @log_error
-    # format: one of 'list', 'dict'
-    # todo rename format param
-    def __init__(self, connector_type, *conn_args, format=None, **conn_kwargs):
-        DI.register(format, connector_type, *conn_args, **conn_kwargs)
+    def __init__(self, connector_type, *conn_args, format_type=None, **conn_kwargs):
+        """
+        :param connector_type: now only 'postgres' is supported
+        :param conn_args: arg-params like host and port needed to connect to database
+        :param format_type: the format data will be returned in; now only 'list' and 'dict' are supported
+        :param conn_kwargs: kwarg-params like host and port needed to connect to database
+        """
+        DI.register(format_type, connector_type, *conn_args, **conn_kwargs)
 
         self.meta = dict()
         self.meta['connector'] = inject.instance(IConnector)
+        self.meta['aggregator'] = DBQueryAggregator(self.meta['connector'])
 
     # source is object with __dict__ field or a module name (with 'in_module' flag up)
     def create_data(self, source=None, in_module=False):
-        DBCreator(self.meta['connector'], self).create_data(source, in_module)
+        DBCreator(self.meta['connector'], self.meta['aggregator']).create_data(source, in_module)
 
     def commit(self):
         self.meta['connector'].commit()
 
     def exec(self, raw_query):
-        #logger.warning('UNSAFE: executing raw query: %s', raw_query)
-        return QRequest(self.meta['connector'], request=raw_query)
+        return self.meta['aggregator'].exec(raw_query)
 
     def select(self, table: QRTable, *args):
-        return QRSelect(self.meta['connector'], table, *args)
+        return self.meta['aggregator'].select(table, *args)
 
     def delete(self, table: QRTable, auto_commit=False):
-        return QRDelete(self.meta['connector'], table, auto_commit)
+        return self.meta['aggregator'].delete(table, auto_commit)
 
     def update(self, table: QRTable, auto_commit=False):
-        return QRUpdate(self.meta['connector'], table, auto_commit)
+        return self.meta['aggregator'].update(table, auto_commit)
 
     def insert(self, table: QRTable, *args, auto_commit=False):
-        return QRInsert(self.meta['connector'], table, *args, auto_commit=auto_commit)
+        return self.meta['aggregator'].insert(table, *args, auto_commit=auto_commit)
 

@@ -5,7 +5,7 @@ from IConnector import IConnector, DBResult
 from error_handlers import log_error, retry_log_error
 from qrlogging import logger
 from threading import Lock
-
+import symbols
 
 # IConnector realization for Postgres database
 class PostgresConnector(IConnector):
@@ -38,6 +38,8 @@ class PostgresConnector(IConnector):
 
     @log_error
     def exec(self, request: str, identifiers=None, literals=None, result='all'):
+        request = request.replace(symbols.QRDB_IDENTIFIER, '{}')
+        request = request.replace(symbols.QRDB_LITERAL, '%s')
         request = sql.SQL(request)
         if identifiers:
             identifiers = [sql.Identifier(x) for x in identifiers]

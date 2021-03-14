@@ -1,6 +1,5 @@
 from error_handlers import *
 
-
 @log_class(log_error)
 @exc_no_db(exceptions=['set_DB'])
 class QRTable:
@@ -13,7 +12,7 @@ class QRTable:
     def __init__(self, table_name=None, fields=None, DB=None):
         """
         :param fields: in format {'field_name': 'field_type', ...}
-        :param DB: class DB object
+        :param DB: DBQueryAggregator instance
         """
         self.meta = dict()
         self.meta['table_name'] = table_name

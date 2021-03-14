@@ -10,7 +10,8 @@ class IConnector:
     @abstractmethod
     def exec(self, query_str: str, identifiers=None, literals=None, result='all'):
         """
-        :param query_str: request string, containing {} for identifiers and %s for literals
+        :param query_str: request string,
+            containing symbols.QRDB_IDENTIFIER for identifiers and symbols.QRDB_LITERAL for literals
         :param identifiers: iterable of identifiers
         :param literals: iterable of literals
         :param result: one of 'all' and 'one' - amount of rows to return from query results

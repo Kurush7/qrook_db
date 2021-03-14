@@ -2,9 +2,17 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 from data import *
 import operators as op
 from collections.abc import Iterable
+from symbols import *
 
 
-def get_field(field_name, tables) -> QRField:
+def get_field(field_name: str, tables) -> QRField:
+    """
+    :param field_name: field name
+    :param tables: iterable of QRTables
+    :return: QRField corresponding to given name or error,
+    if name wasn't found or found several suitable fields
+    """
+
     cnt = 0
     field = None
     for t in tables:
@@ -18,6 +26,11 @@ def get_field(field_name, tables) -> QRField:
 
 
 def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
+    """
+    :param tables: list of QRTable - tables used in query
+    :param disable_full_name: if False, identifiers will be extended with table name: like 'id'->'table.id'
+    :return: 3 lists: identifiers, literals, query parts (conditions)
+    """
     identifiers = []
     literals = []
     conditions = []
@@ -44,6 +57,7 @@ def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
 
 
 class QueryPartData:
+    """structured information for IQueryPart accumulated results"""
     def __init__(self, identifiers, literals, query: str):
         self.identifiers = identifiers
         self.literals = literals
@@ -52,28 +66,31 @@ class QueryPartData:
 
 class IQueryPart:
     """
-    Abstract class for db-queries like select, update etc.
+    Abstract class for db-query parts like group_by, where, limit etc.
     """
     __metaclass__ = ABCMeta
 
     @abstractmethod
     def add_data(self, *args, **kwargs) -> QueryPartData:
-        """todo return data"""
+        """use query part with given arguments; example: obj.where(id=1, name=In(['a','b']))"""
 
     @abstractmethod
     def get_name(self):
-        """todo return name"""
+        """get name of query part - the one is used as a method name in QRQuery, so it must be a valid identifier"""
 
     @abstractmethod
     def get_data(self) -> QueryPartData:
-        """todo return data"""
+        """get identifiers, literals and query string accumulated in query part (multiple calls for single
+        IQueryPart object is possible)"""
 
     @abstractmethod
     def add_tables(self, tables):
-        """todo return data"""
+        """add list of tables"""
+
     @abstractmethod
     def set_tables(self, tables):
-        """todo return data"""
+        """set list of tables to use"""
+
 
 class QueryPart(IQueryPart):
     def __init__(self, name: str, command: str = None, tables=None):
@@ -113,6 +130,7 @@ class QueryPart(IQueryPart):
     def set_tables(self, tables):
         self.tables = tables
 
+
 class QRWhere(QueryPart):
     def __init__(self, tables=None):
         super().__init__('where', tables=tables)
@@ -126,6 +144,7 @@ class QRWhere(QueryPart):
 
         super(QueryPart, self).add_data(qr_joint=op, *args, **kwargs)
 
+
 class QRGroupBy(QueryPart):
     def __init__(self, tables=None):
         super().__init__(name='group_by', command='group by', tables=tables)
@@ -133,7 +152,8 @@ class QRGroupBy(QueryPart):
     def add_data(self, *args, **kwargs):
         for field in args:
             self.identifiers.append(field.name)
-        self.add_conditions(['{}'] * len(args), joint=',')
+        self.add_conditions([QRDB_IDENTIFIER] * len(args), joint=',')
+
 
 class QRHaving(QueryPart):
     def __init__(self, tables=None):
@@ -141,6 +161,7 @@ class QRHaving(QueryPart):
 
     def add_data(self, *args, **kwargs):
         super().add_data(qr_joint=',', *args, **kwargs)
+
 
 class QROrderBy(QueryPart):
     def __init__(self, tables=None):
@@ -154,7 +175,8 @@ class QROrderBy(QueryPart):
         for field in args:
             self.identifiers.append(field.name)
 
-        self.add_conditions(['{} ' + sort_type] * len(args), joint=',')
+        self.add_conditions([QRDB_IDENTIFIER + ' ' + sort_type] * len(args), joint=',')
+
 
 class QRLimit(QueryPart):
     def __init__(self, tables=None):
@@ -168,7 +190,8 @@ class QRLimit(QueryPart):
             raise Exception('Integer expected as a limit condition param')
 
         self.literals.append(n)
-        self.query = ' limit %s '
+        self.query = ' limit ' + QRDB_LITERAL + ' '
+
 
 class QROffset(QueryPart):
     def __init__(self, tables=None):
@@ -182,7 +205,8 @@ class QROffset(QueryPart):
             raise Exception('Offset expected as a limit condition param')
 
         self.literals.append(n)
-        self.query = ' offset %s '
+        self.query = ' offset ' + QRDB_LITERAL + ' '
+
 
 class QRJoin(QueryPart):
     def __init__(self, tables=None):
@@ -197,7 +221,7 @@ class QRJoin(QueryPart):
 
         if type(cond) == str:
             self.identifiers.append(table.meta['table_name'])
-            join_cond = '{} on %s' % cond
+            join_cond = QRDB_IDENTIFIER + ' on %s' % cond
 
         else:
             # todo different imports -> no recognition if not isinstance(cond, op.Eq):
@@ -212,9 +236,11 @@ class QRJoin(QueryPart):
             self.identifiers.extend([table.meta['table_name'],
                                      cond.arg1.table_name, cond.arg1.name,
                                      cond.arg2.table_name, cond.arg2.name])
-            join_cond = '{} on {}.{} = {}.{}'
+            join_cond = '%s on %s.%s = %s.%s' % (QRDB_IDENTIFIER, QRDB_IDENTIFIER,
+                                                 QRDB_IDENTIFIER, QRDB_IDENTIFIER, QRDB_IDENTIFIER)
 
         self.add_conditions([join_cond], joint='join')
+
 
 class QRSet(QueryPart):
     def __init__(self, tables=None):
@@ -228,6 +254,7 @@ class QRSet(QueryPart):
         self.literals.extend(literals)
 
         self.add_conditions(conditions, joint=',')
+
 
 class QRValues(QueryPart):
     def __init__(self, column_cnt, tables=None):
@@ -254,7 +281,7 @@ class QRValues(QueryPart):
             if flag:
                 value_sets += 1
 
-        single = '%s,' * self.column_cnt
+        single = (QRDB_LITERAL + ',') * self.column_cnt
         single = '(' + single[:-1] + ')'
         query = ', '.join([single] * value_sets)
 
@@ -263,6 +290,7 @@ class QRValues(QueryPart):
         else:
             self.query += ', ' + query
         self.literals.extend(literals)
+
 
 class QRReturning(QueryPart):
     def __init__(self, used_fields, tables=None):
@@ -274,20 +302,25 @@ class QRReturning(QueryPart):
         identifiers = []
         query = []
 
-        for arg in args:
+        def parse_arg(arg, query):
             if isinstance(arg, QRField):
-                query += ['{}']
+                query += [QRDB_IDENTIFIER]
                 identifiers.extend([arg.name])
                 self.used_fields.append(arg.name)
             else:
-                # logger.warning('UNSAFE: executing raw returning from table %s with args: %s',
-                #               self.tables[0], args)
-                # todo here used fields
                 if arg == '*':
                     self.used_fields.extend(list(self.tables[0].meta['fields'].keys()))
                 else:
                     self.used_fields.append(arg)
                 query += [arg]
+
+        for arg in args:
+            if isinstance(arg, Iterable) and not isinstance(arg, str):
+                for a in arg:
+                    parse_arg(a, query)
+            else:
+                parse_arg(arg, query)
+
 
         self.identifiers.extend(identifiers)
         self.add_conditions(query, joint=',')

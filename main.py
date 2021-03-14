@@ -7,7 +7,7 @@ books, books_authors, authors, events = [QRTable()] * 4
 # todo when dict format used, manage same names in different tables
 
 def main():
-    DB = db.DB('postgres', 'qrook_db', 'kurush', 'pondoxo', format='dict')
+    DB = db.DB('postgres', 'qrook_db', 'kurush', 'pondoxo', format_type='dict')
     DB.create_data(__name__, in_module=True)
     print(books, books.id)
     data = DB.select(books).where(original_publication_year=2000, language_code='eng').\
@@ -41,6 +41,18 @@ def main():
     #ok = DB.insert(events, events.time, auto_commit=True).values([t]).exec()
     #ok = DB.insert(events, events.date, events.time, auto_commit=True).values([d, t]).exec()
     query = events.insert(events.date, events.time, auto_commit=True).values([[d, t], [None, t]]).returning('*')
+    data = query.all()
+    print(data)
+
+    query = events.insert(events.date, events.time, auto_commit=True).values([[d, t], [None, t]]).returning(events.date, events.time)
+    data = query.all()
+    print(data)
+
+    query = events.insert(events.date, events.time, auto_commit=True).values([[d, t], [None, t]]).returning(['date', 'time'])
+    data = query.all()
+    print(data)
+
+    query = events.insert(events.date, events.time, auto_commit=True).values([[d, t], [None, t]]).returning('date', 'time')
     data = query.all()
     print(data)
 

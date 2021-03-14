@@ -5,20 +5,29 @@ from data_formatter import IDataFormatter
 
 from query_parts import *
 
-# todo динамические методы - над ними нет декораторов
 
 class IQRQuery:
+    """
+    Abstract class for db-queries like select, update, delete  etc.
+    """
+
     @abstractmethod
-    def exec(self, result: str):
-        """execute query"""
+    def exec(self, result: str = None):
+        """
+        execute the formed query
+        :param result: one of 'all', 'one' - number of rows to get from query result
+        :return: None if results is None, else data in format specified by injected IDataFormatter instance
+        WARNING - if result is 'one', no 'limit 1' is added to query - one must specify that yourself
+        """
 
     @abstractmethod
     def all(self):
-        """execute query"""
+        """shortcut for exec with result='all'"""
 
     @abstractmethod
     def one(self):
-        """execute query"""
+        """shortcut for exec with result='one'"""
+
 
 @log_class(log_error_default_self)
 class QRQuery(IQRQuery):
@@ -46,6 +55,7 @@ class QRQuery(IQRQuery):
     def __create_method(self, qp: IQueryPart):
         n = len(self.query_parts)
 
+        @log_error_default_self
         def f(*args, **kwargs):
             if self.cur_order > n:
                 raise Exception('select: wrong operators sequence')
@@ -76,11 +86,6 @@ class QRQuery(IQRQuery):
 
         return True if (result is None) else \
             self.data_formatter.format_data(data)
-
-    def config_fields(self, *args):
-        # todo add support for iterable params
-        self.used_fields = list(args)
-        return self
 
     def all(self):
         return self.exec('all')
@@ -118,7 +123,7 @@ class QRSelect(QRQuery):
         self.configure_query_parts()
 
     def configure_query_parts(self):
-        # todo order is important - must correlate with query parts order
+        # order is important - must correlate with query parts order
         self._add_query_part(QRJoin(self.tables))
         self._add_query_part(QRWhere(self.tables))
         self._add_query_part(QRGroupBy(self.tables))
@@ -130,13 +135,12 @@ class QRSelect(QRQuery):
 
 @log_class(log_error_default_self)
 class QRUpdate(QRQuery):
-    def __init__(self, connector: IConnector, table: QRTable, auto_commit: False):
+    def __init__(self, connector: IConnector, table: QRTable, auto_commit=False):
         identifiers, literals = [], []
 
         query = 'update {}'
         table_name = table.meta['table_name']
         identifiers += [table_name]
-        # todo manage used-fields
 
         super().__init__(connector, table, query=query,
                          identifiers=identifiers, literals=literals, auto_commit=auto_commit)
@@ -145,12 +149,11 @@ class QRUpdate(QRQuery):
     def configure_query_parts(self):
         self._add_query_part(QRSet(self.tables))
         self._add_query_part(QRWhere(self.tables))
-        # todo add returning... is it possible?
 
 
 @log_class(log_error_default_self)
 class QRDelete(QRQuery):
-    def __init__(self, connector: IConnector, table: QRTable, auto_commit: False):
+    def __init__(self, connector: IConnector, table: QRTable, auto_commit=False):
         identifiers, literals = [], []
 
         query = 'delete from {}'
@@ -163,7 +166,7 @@ class QRDelete(QRQuery):
 
     def configure_query_parts(self):
         self._add_query_part(QRWhere(self.tables))
-        # todo add returning... is it possible?
+
 
 @log_class(log_error_default_self)
 class QRInsert(QRQuery):
@@ -193,3 +196,14 @@ class QRInsert(QRQuery):
     def configure_query_parts(self):
         self._add_query_part(QRValues(tables=self.tables, column_cnt=len(self.identifiers) - 1))
         self._add_query_part(QRReturning(self.used_fields, self.tables))
+
+@log_class(log_error_default_self)
+class QRExec(QRQuery):
+    def __init__(self, connector: IConnector, raw_query, auto_commit=False):
+        super().__init__(connector, query=raw_query, auto_commit=auto_commit)
+
+    def config_fields(self, *args):
+        """set field names to return"""
+        # todo add support for iterable params
+        self.used_fields = list(args)
+        return self

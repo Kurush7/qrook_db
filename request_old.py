@@ -8,15 +8,7 @@ from IConnector import IConnector
 from data_formatter import IDataFormatter
 
 
-# accurate - db.operators needed with 'db.' to avoid different namespaces-> isinstance will fail
-
-# todo unsafe warnings - deal with security on raw strings and others
-
-# todo insert values -> add array of dicts support
-
-# todo where not only by field_name (may be dubious)
-
-# todo returning - .returning(id, title) -> "select... returning id" - just one!!!!
+# todo accurate - db.operators needed with 'db.' to avoid different namespaces-> isinstance will fail
 
 def request_operators_order(op):
     if op == 'join': return 0
@@ -369,8 +361,6 @@ class QRInsertOld(QRequest):
                 identifiers.extend([arg.name])
                 self.used_fields.append(arg.name)
             else:
-                #logger.warning('UNSAFE: executing raw returning from table %s with args: %s',
-                #               self.tables[0], args)
                 # todo here used fields
                 if arg == '*':
                     self.used_fields = list(self.tables[0].meta['fields'].keys())

@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
-
+from symbols import QRDB_IDENTIFIER, QRDB_LITERAL
 
 class IQROperator:
     """
@@ -24,10 +24,10 @@ class QROperator(IQROperator):
 
     @staticmethod
     def _get_name(short_name):
-        return '{} ' if short_name else '{}.{} '
+        return QRDB_IDENTIFIER + ' ' if short_name else '%s.%s ' % (QRDB_IDENTIFIER, QRDB_IDENTIFIER)
 
     def condition(self, short_name=False):
-        return self._get_name(short_name) + self._op + '%s', [self._literals]
+        return self._get_name(short_name) + self._op + QRDB_LITERAL, [self._literals]
 
 
 class Between(QROperator):
@@ -38,7 +38,8 @@ class Between(QROperator):
         super().__init__('between', [a, b])
 
     def condition(self, short_name=False):
-        return self._get_name(short_name) + ' between %s and %s', list(self._literals)
+        return self._get_name(short_name) + ' between %s and %s' % (QRDB_LITERAL, QRDB_LITERAL), \
+               list(self._literals)
 
 
 class In(QROperator):
@@ -52,7 +53,7 @@ class In(QROperator):
         super().__init__('in', args)
 
     def condition(self, short_name=False):
-        ins = ','.join(['%s'] * len(self._literals))
+        ins = ','.join([QRDB_LITERAL] * len(self._literals))
         return super()._get_name(short_name) + ' in(' + ins + ')', list(self._literals)
 
 
@@ -66,8 +67,8 @@ class Eq(QROperator):
         :param arg1 - literal (or identifier, if arg2 set), right side of '='
         :param arg2: optional. if set, both args are identifiers' names
         examples of 'condition' call:
-        Eq(16).condition() -> '{}=%s', [2000]
-        Eq('a_id', 'b_id') -> '{}={}', []
+        Eq(16).condition() -> '{id}={literal}', [2000]
+        Eq('a_id', 'b_id') -> '{id}={id}', []
         """
         self.arg1, self.arg2, self.duo = arg1, arg2, arg2 is not None
         super().__init__('=', arg1)
