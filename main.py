@@ -1,11 +1,11 @@
 import DB as db
-import operators as op
 from data import QRTable
 books, books_authors, authors, events = [QRTable()] * 4
 
 
 def main():
     DB = db.DB('postgres', 'qrook_db', 'kurush', 'pondoxo', format_type='dict')
+    op = DB.operators
     DB.create_logger(app_name='qrookdb_test')
     DB.create_data(__name__, in_module=True)
 
@@ -60,7 +60,6 @@ def main():
 
     data = DB.exec('select * from get_book_authors(1) as f(id int, name varchar)').config_fields('id', 'name').all()
     print(data)
-
 
     q = DB.select(events, events.id, events.id).where(id=1)
     data = q.all()
