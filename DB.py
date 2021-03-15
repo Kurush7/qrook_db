@@ -4,7 +4,6 @@ from query import *
 
 # todo-list throughout the orm-project
 # important
-# todo errors logging and exceptioning
 # todo tests
 
 # middle
@@ -15,7 +14,10 @@ from query import *
 # todo add select(books.id) parsing -> extract table from ONLY datafield
 # todo add returning part for delete query (and update?)
 # todo add StructDataFormatter
+# todo add 'as' syntax: 'select count(*) as cnt
 
+
+import qrlogging
 
 class DBQueryAggregator:
     def __init__(self, conn: IConnector):
@@ -51,6 +53,7 @@ class DBCreator:
         self.db = db
 
     def create_data(self, source=None, in_module=False):
+        """creates table data (described in DB.create_data) and returns it"""
         tables = self.conn.table_info()
         t = dict()
 
@@ -62,9 +65,9 @@ class DBCreator:
             if in_module:
                 source = sys.modules[source]
             source.__dict__.update(t)
+        return t
 
 
-@log_class(log_error)
 class DB:
     def __init__(self, connector_type, *conn_args, format_type=None, **conn_kwargs):
         """
@@ -79,9 +82,18 @@ class DB:
         self.meta['connector'] = inject.instance(IConnector)
         self.meta['aggregator'] = DBQueryAggregator(self.meta['connector'])
 
-    # source is object with __dict__ field or a module name (with 'in_module' flag up)
+    def create_logger(self, logger_name='default', app_name='app',
+                  level="INFO", file: str = None, file_level="INFO"):
+        qrlogging.logger = qrlogging.create_logger(logger_name, app_name, level, file, file_level)
+
     def create_data(self, source=None, in_module=False):
-        DBCreator(self.meta['connector'], self.meta['aggregator']).create_data(source, in_module)
+        """ Create QRTable objects for all tables in given database (use system tables data)
+            and stores these objects in this class.
+            if 'source' present, attributes with names of found tables will be added to it
+            'source' is object with __dict__ field or a module name (with 'in_module' flag up)
+        """
+        data = DBCreator(self.meta['connector'], self.meta['aggregator']).create_data(source, in_module)
+        self.__dict__.update(data)
 
     def commit(self):
         self.meta['connector'].commit()

@@ -5,6 +5,7 @@ from data_formatter import IDataFormatter
 
 from query_parts import *
 from symbols import *
+import qrlogging
 
 
 class IQRQuery:
@@ -29,6 +30,9 @@ class IQRQuery:
     def one(self):
         """shortcut for exec with result='one'"""
 
+    def get_error(self):
+        """return None or str with description of error occured while making query"""
+
 
 class QRQuery(IQRQuery):
     data_formatter = inject.attr(IDataFormatter)
@@ -51,16 +55,26 @@ class QRQuery(IQRQuery):
         self.cur_order = -1
         self.used_fields = used_fields
         self.query_parts = []
+        self.error = None
+
+    def get_error(self):
+        return self.error
 
     def __create_method(self, qp: IQueryPart):
         n = len(self.query_parts)
 
         def f(*args, **kwargs):
+            if self.error is not None:
+                return self
             if self.cur_order > n:
-                raise Exception('select: wrong operators sequence')
+                self.error = 'select: wrong operators sequence'
             self.cur_order = n
 
-            qp.add_data(*args, **kwargs)
+            try:
+                qp.add_data(*args, **kwargs)
+            except Exception as e:
+                qrlogging.exception(e)
+                self.error = str(e)
             return self
         return f
 
@@ -70,7 +84,11 @@ class QRQuery(IQRQuery):
         self.__dict__[method_name] = self.__create_method(qp)
         self.query_parts.append(qp)
 
+    @log_error_default()
     def exec(self, result=None):
+        if self.error is not None:
+            return None
+
         for qp in self.query_parts:
             data = qp.get_data()
             self.identifiers.extend(data.identifiers)
@@ -93,37 +111,42 @@ class QRQuery(IQRQuery):
         return self.exec('one')
 
 
-@log_class(log_error_default_self)
 class QRSelect(QRQuery):
     def __init__(self, connector: IConnector, table: QRTable, *args):
-        identifiers, literals, used_fields = [], [], dict()
-        if len(args) == 0:
-            own_args = list(table.meta['fields'].values())
-        else:
-            own_args = args
+        try:
+            identifiers, literals, used_fields = [], [], dict()
+            if len(args) == 0:
+                own_args = list(table.meta['fields'].values())
+            else:
+                own_args = args
 
-        fields = ''
-        for arg in own_args:
-            if isinstance(arg, QRField):
-                fields += '%s.%s,' % (QRDB_IDENTIFIER, QRDB_IDENTIFIER)
-                identifiers.extend([arg.table_name, arg.name])
-                self.add_used_field(used_fields, {'name': arg.name, 'table': arg.table_name})
-            elif isinstance(arg, str):  # todo else warning
-                fields += arg + ','
-                self.add_used_field(used_fields, {'name': arg})
-        fields = fields[:-1]
+            fields = ''
+            for arg in own_args:
+                if isinstance(arg, QRField):
+                    fields += '%s.%s,' % (QRDB_IDENTIFIER, QRDB_IDENTIFIER)
+                    identifiers.extend([arg.table_name, arg.name])
+                    self.__add_used_field(used_fields, {'name': arg.name, 'table': arg.table_name})
+                elif isinstance(arg, str):  # todo else warning
+                    fields += arg + ','
+                    self.__add_used_field(used_fields, {'name': arg})
+            fields = fields[:-1]
 
-        used_fields = [k for k, v in used_fields.items() if not v.get('expired')]
+            used_fields = [k for k, v in used_fields.items() if not v.get('expired')]
 
-        query = 'select ' + fields + ' from ' + QRDB_IDENTIFIER
-        table_name = table.meta['table_name']
-        identifiers += [table_name]
+            query = 'select ' + fields + ' from ' + QRDB_IDENTIFIER
+            table_name = table.meta['table_name']
+            identifiers += [table_name]
 
-        super().__init__(connector, table, query=query,
-                         identifiers=identifiers, literals=literals, used_fields=used_fields)
-        self.configure_query_parts()
+            super().__init__(connector, table, query=query,
+                             identifiers=identifiers, literals=literals, used_fields=used_fields)
+        except Exception as e:
+            super().__init__(connector, table)
+            self.error = str(e)
+            qrlogging.warning("Failed to init select-query: %s", e)
+        finally:
+            self.__configure_query_parts()
 
-    def configure_query_parts(self):
+    def __configure_query_parts(self):
         # order is important - must correlate with query parts order
         self._add_query_part(QRJoin(self.tables))
         self._add_query_part(QRWhere(self.tables))
@@ -133,7 +156,7 @@ class QRSelect(QRQuery):
         self._add_query_part(QRLimit(self.tables))
         self._add_query_part(QROffset(self.tables))
 
-    def add_used_field(self, fields, a):
+    def __add_used_field(self, fields, a):
         x = fields.get(a['name'])
         if x is not None:
             if x.get('table') is None or a.get('table') is None:
@@ -153,67 +176,86 @@ class QRSelect(QRQuery):
             fields[a['name']] = a
 
 
-@log_class(log_error_default_self)
 class QRUpdate(QRQuery):
     def __init__(self, connector: IConnector, table: QRTable, auto_commit=False):
-        identifiers, literals = [], []
+        try:
+            identifiers, literals = [], []
 
-        query = 'update ' + QRDB_IDENTIFIER
-        table_name = table.meta['table_name']
-        identifiers += [table_name]
+            query = 'update ' + QRDB_IDENTIFIER
+            table_name = table.meta['table_name']
+            identifiers += [table_name]
 
-        super().__init__(connector, table, query=query,
-                         identifiers=identifiers, literals=literals, auto_commit=auto_commit)
-        self.configure_query_parts()
+            super().__init__(connector, table, query=query,
+                             identifiers=identifiers, literals=literals, auto_commit=auto_commit)
+            self.__configure_query_parts()
+        except Exception as e:
+            super().__init__(connector, table)
+            self.error = str(e)
+            qrlogging.warning("Failed to init update-query: %s", e)
+        finally:
+            self.__configure_query_parts()
 
-    def configure_query_parts(self):
+    def __configure_query_parts(self):
         self._add_query_part(QRSet(self.tables))
         self._add_query_part(QRWhere(self.tables))
 
 
-@log_class(log_error_default_self)
 class QRDelete(QRQuery):
     def __init__(self, connector: IConnector, table: QRTable, auto_commit=False):
-        identifiers, literals = [], []
+        try:
+            identifiers, literals = [], []
 
-        query = 'delete from ' + QRDB_IDENTIFIER
-        table_name = table.meta['table_name']
-        identifiers += [table_name]
+            query = 'delete from ' + QRDB_IDENTIFIER
+            table_name = table.meta['table_name']
+            identifiers += [table_name]
 
-        super().__init__(connector, table, query=query,
-                         identifiers=identifiers, literals=literals, auto_commit=auto_commit)
-        self.configure_query_parts()
+            super().__init__(connector, table, query=query,
+                             identifiers=identifiers, literals=literals, auto_commit=auto_commit)
+            self.__configure_query_parts()
+        except Exception as e:
+            super().__init__(connector, table)
+            self.error = str(e)
+            qrlogging.warning("Failed to init select-query: %s", e)
+        finally:
+            self.__configure_query_parts()
 
-    def configure_query_parts(self):
+    def __configure_query_parts(self):
         self._add_query_part(QRWhere(self.tables))
 
 
 @log_class(log_error_default_self)
 class QRInsert(QRQuery):
     def __init__(self, connector: IConnector, table: QRTable, *args, auto_commit=False):
-        identifiers, literals = [], []
-        if len(args) == 0:
-            fields = ''
-        else:
-            fields = ''
-            for arg in args:
-                if isinstance(arg, QRField):
-                    fields += QRDB_IDENTIFIER + ' ,'
-                    identifiers.extend([arg.name])
-                else:
-                    fields += arg + ','
-            fields = fields[:-1]
-            fields = '(' + fields + ')'
+        try:
+            identifiers, literals = [], []
+            if len(args) == 0:
+                fields = ''
+            else:
+                fields = ''
+                for arg in args:
+                    if isinstance(arg, QRField):
+                        fields += QRDB_IDENTIFIER + ' ,'
+                        identifiers.extend([arg.name])
+                    else:
+                        fields += arg + ','
+                fields = fields[:-1]
+                fields = '(' + fields + ')'
 
-        query = 'insert into ' + QRDB_IDENTIFIER + ' ' + fields + ' values '
-        table_name = table.meta['table_name']
-        identifiers = [table_name] + identifiers
+            query = 'insert into ' + QRDB_IDENTIFIER + ' ' + fields + ' values '
+            table_name = table.meta['table_name']
+            identifiers = [table_name] + identifiers
 
-        super().__init__(connector, table, query=query,
-                         identifiers=identifiers, literals=literals, auto_commit=auto_commit)
-        self.configure_query_parts()
+            super().__init__(connector, table, query=query,
+                             identifiers=identifiers, literals=literals, auto_commit=auto_commit)
+            self.__configure_query_parts()
+        except Exception as e:
+            super().__init__(connector, table)
+            self.error = str(e)
+            qrlogging.warning("Failed to init select-query: %s", e)
+        finally:
+            self.__configure_query_parts()
 
-    def configure_query_parts(self):
+    def __configure_query_parts(self):
         self._add_query_part(QRValues(tables=self.tables, column_cnt=len(self.identifiers) - 1))
         self._add_query_part(QRReturning(self.used_fields, self.tables))
 

@@ -3,9 +3,9 @@ import psycopg2.sql as sql
 
 from IConnector import IConnector, DBResult
 from error_handlers import log_error, retry_log_error
-from qrlogging import logger
 from threading import Lock
 import symbols
+import qrlogging
 
 # IConnector realization for Postgres database
 class PostgresConnector(IConnector):
@@ -45,7 +45,7 @@ class PostgresConnector(IConnector):
             identifiers = [sql.Identifier(x) for x in identifiers]
             request = request.format(*identifiers)
 
-        logger.info('POSTGRES EXECUTE: %s with literals %s', request.as_string(self.cursor), literals)
+        qrlogging.info('POSTGRES EXECUTE: %s with literals %s', request.as_string(self.cursor), literals)
         with self.lock:
             self.cursor.execute(request, literals)
             data = self.extract_result(result)
@@ -57,7 +57,7 @@ class PostgresConnector(IConnector):
         elif result == 'one':
             return self.cursor.fetchone()
         elif result is not None:
-            logger.warning("unexpected 'result' value: %s" % result)
+            qrlogging.warning("unexpected 'result' value: %s" % result)
         return None
 
     @log_error

@@ -3,6 +3,24 @@ import logging
 _log_format = "%(asctime)s [%(levelname)s]: [%(app)s, %(name)s] - " \
               "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
 
+logger = None
+
+def info(msg, *args):
+    if logger:
+        logger.info(msg, *args)
+
+def warning(msg, *args):
+    if logger:
+        logger.warning(msg, *args)
+
+def error(msg, *args):
+    if logger:
+        logger.error(msg, *args)
+
+def exception(msg, *args):
+    if logger:
+        logger.exception(msg, *args)
+
 
 class CustomFormatter(logging.Formatter):
     """Logging Formatter to add colors and count warning / errors"""
@@ -26,28 +44,28 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def get_file_handler():
-    file_handler = logging.FileHandler("qrook_app.log")
-    file_handler.setLevel(logging.WARNING)
+def get_file_handler(filename, level):
+    file_handler = logging.FileHandler(filename)
+    file_handler.setLevel(level)
     file_handler.setFormatter(logging.Formatter(_log_format))
     return file_handler
 
 
-def get_stream_handler():
+def get_stream_handler(level):
     sh = logging.StreamHandler()
-    sh.setLevel(logging.INFO)
+    sh.setLevel(level)
     sh.setFormatter(logging.Formatter(_log_format))
     sh.setFormatter(CustomFormatter())
     return sh
 
 
-def create_logger(name='default'):
-    logger = logging.getLogger(name)
-    logger.addHandler(get_file_handler())
-    logger.addHandler(get_stream_handler())
-    logger = logging.LoggerAdapter(logger, {'app': 'qrook'})
+def create_logger(logger_name='default', app_name='app', level="INFO",
+                  file: str = None, file_level="INFO"):
+    logger = logging.getLogger(logger_name)
+    logger.addHandler(get_stream_handler(level))
+    if file:
+        logger.addHandler(get_file_handler(file, file_level))
+
+    logger = logging.LoggerAdapter(logger, {'app': app_name})
     logger.setLevel('INFO')
     return logger
-
-
-logger = create_logger()

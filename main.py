@@ -3,12 +3,13 @@ import operators as op
 from data import QRTable
 books, books_authors, authors, events = [QRTable()] * 4
 
-# todo add 'as' syntax: 'select count(*) as cnt
-# todo when dict format used, manage same names in different tables
 
 def main():
     DB = db.DB('postgres', 'qrook_db', 'kurush', 'pondoxo', format_type='dict')
+    DB.create_logger(app_name='qrookdb_test')
     DB.create_data(__name__, in_module=True)
+
+    print(DB.books)
     print(books, books.id)
     data = DB.select(books).where(original_publication_year=2000, language_code='eng').\
         where(id=op.In(470, 490, 485)).all()
@@ -61,8 +62,9 @@ def main():
     print(data)
 
 
-    data = DB.select(events, events.id, events.id).all()
-    print(data)
+    q = DB.select(events, events.id, events.id).where(id=1)
+    data = q.all()
+    print('data:', data, ';\terror:', q.get_error())
 
 if __name__ == '__main__':
     main()

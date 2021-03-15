@@ -1,4 +1,4 @@
-from qrlogging import logger
+import qrlogging
 import time
 
 
@@ -8,7 +8,7 @@ def log_error(f):
             s = f(*args, **kwargs)
             return s
         except Exception as e:
-            logger.exception(e)
+            qrlogging.exception(e)
 
     return wrapper
 
@@ -20,7 +20,7 @@ def log_error_default(default=None):
                 s = f(*args, **kwargs)
                 return s
             except Exception as e:
-                logger.exception(e)
+                qrlogging.exception(e)
                 return default
 
         return wrapper
@@ -34,7 +34,7 @@ def log_error_default_self(f):
             s = f(*args, **kwargs)
             return s
         except Exception as e:
-            logger.exception(e)
+            qrlogging.exception(e)
             return args[0]
 
     return wrapper
@@ -48,7 +48,7 @@ def retry_log_error(retry_delay=5):
                     s = f(*args, **kwargs)
                     return s
                 except Exception as e:
-                    logger.warning(str(e) + '; retrying in %s s...' % retry_delay)
+                    qrlogging.warning(str(e) + '; retrying in %s s...' % retry_delay)
                     time.sleep(retry_delay)
 
         return wrapper

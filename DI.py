@@ -1,8 +1,7 @@
 import inject
 from data_formatter import *
 from IConnector import *
-from PostgresConnector import *
-
+from PostgresConnector import PostgresConnector
 
 def config_DB(binder, connector, data_formatter):
     binder.bind(IDataFormatter, data_formatter())
@@ -27,4 +26,4 @@ def register(format_type, connector_type, *conn_args, **conn_kwargs):
 
 # default empty configuration. used to avoid import errors on not-configured injections
 if not inject.is_configured():
-    inject.configure(lambda binder: None)
+    inject.clear_and_configure(lambda binder: None)
