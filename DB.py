@@ -2,6 +2,7 @@ import DI
 import sys
 from query import *
 import operators
+import data
 
 # todo-list throughout the orm-project
 # important
@@ -71,6 +72,7 @@ class DBCreator:
 
 class DB:
     operators = operators
+    data = data
 
     def __init__(self, connector_type, *conn_args, format_type=None, **conn_kwargs):
         """

@@ -1,18 +1,18 @@
 import DB as db
 from data import QRTable
-books, books_authors, authors, events = [QRTable()] * 4
+
+books, books_authors, authors, events = [QRTable] * 4
+DB = db.DB('postgres', 'qrook_db', 'kurush', 'pondoxo', format_type='dict')
+op = DB.operators
+DB.create_logger(app_name='qrookdb_test')
+DB.create_data(__name__, in_module=True)
 
 
 def main():
-    DB = db.DB('postgres', 'qrook_db', 'kurush', 'pondoxo', format_type='dict')
-    op = DB.operators
-    DB.create_logger(app_name='qrookdb_test')
-    DB.create_data(__name__, in_module=True)
-
     print(DB.books)
     print(books, books.id)
     data = DB.select(books).where(original_publication_year=2000, language_code='eng').\
-        where(id=op.In(470, 490, 485)).all()
+        where(id=op.In(470, 490, 485)).exec('all')
     print(data[:10])
 
     data = books.select('count(*)').group_by(books.original_publication_year).all()
@@ -42,8 +42,9 @@ def main():
 
     #ok = DB.insert(events, events.time, auto_commit=True).values([t]).exec()
     #ok = DB.insert(events, events.date, events.time, auto_commit=True).values([d, t]).exec()
-    query = events.insert(events.date, events.time, auto_commit=True).values([[d, t], [None, t]]).returning('*')
+    query = events.insert(events.date, events.time, auto_commit=False).values([[d, t], [None, t]]).returning('*')
     data = query.all()
+    DB.commit()
     print(data)
 
     query = events.insert(events.date, events.time, auto_commit=True).values([[d, t], [None, t]]).returning(events.date, events.time)
