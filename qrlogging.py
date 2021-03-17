@@ -3,8 +3,6 @@ import logging
 _log_format = "%(asctime)s [%(levelname)s]: [%(app)s, %(name)s] - " \
               "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
 
-logger = None
-
 def info(msg, *args):
     if logger:
         logger.info(msg, *args)
@@ -62,6 +60,7 @@ def get_stream_handler(level):
 def create_logger(logger_name='default', app_name='app', level="INFO",
                   file: str = None, file_level="INFO"):
     logger = logging.getLogger(logger_name)
+    [logger.removeHandler(h) for h in logger.handlers]
     logger.addHandler(get_stream_handler(level))
     if file:
         logger.addHandler(get_file_handler(file, file_level))
@@ -69,3 +68,5 @@ def create_logger(logger_name='default', app_name='app', level="INFO",
     logger = logging.LoggerAdapter(logger, {'app': app_name})
     logger.setLevel('INFO')
     return logger
+
+logger = create_logger()

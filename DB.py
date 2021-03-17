@@ -9,6 +9,7 @@ import data
 # todo tests
 
 # middle
+# todo first connection - no logs, for logger not configured
 # todo insert values -> add array of dicts support
 
 # future

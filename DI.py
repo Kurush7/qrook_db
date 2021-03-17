@@ -3,6 +3,12 @@ from data_formatter import *
 from IConnector import *
 from PostgresConnector import PostgresConnector
 
+class Singleton(object):
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(Singleton, cls).__new__(cls)
+        return cls.instance
+
 def config_DB(binder, connector, data_formatter):
     binder.bind(IDataFormatter, data_formatter())
     binder.bind(IConnector, connector())

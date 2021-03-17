@@ -147,7 +147,7 @@ class QRWhere(QueryPart):
         if op not in ['and', 'or']:
             op = 'and'
 
-        super(QueryPart, self).add_data(qr_joint=op, *args, **kwargs)
+        super().add_data(op, *args, **kwargs)
 
 
 class QRGroupBy(QueryPart):
@@ -165,7 +165,7 @@ class QRHaving(QueryPart):
         super().__init__('having', tables=tables)
 
     def add_data(self, *args, **kwargs):
-        super().add_data(qr_joint=',', *args, **kwargs)
+        super().add_data(',', *args, **kwargs)
 
 
 class QROrderBy(QueryPart):

@@ -1,4 +1,4 @@
-import DB as db
+import qrookDB.DB as db
 from data import QRTable
 
 books, books_authors, authors, events = [QRTable] * 4
