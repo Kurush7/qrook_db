@@ -36,7 +36,6 @@ class PostgresConnector(IConnector):
                                      password=self.password, host=self.host, port=self.port)
         self.cursor = self.conn.cursor()
 
-    @log_error
     def exec(self, request: str, identifiers=None, literals=None, result='all'):
         request = request.replace(symbols.QRDB_IDENTIFIER, '{}')
         request = request.replace(symbols.QRDB_LITERAL, '%s')
@@ -47,7 +46,11 @@ class PostgresConnector(IConnector):
 
         qrlogging.info('POSTGRES EXECUTE: %s with literals %s', request.as_string(self.cursor), literals)
         with self.lock:
-            self.cursor.execute(request, literals)
+            try:
+                self.cursor.execute(request, literals)
+            except Exception as e:
+                self.conn.rollback()
+                raise e
             data = self.extract_result(result)
         return DBResult(data, result)
 
@@ -60,7 +63,6 @@ class PostgresConnector(IConnector):
             qrlogging.warning("unexpected 'result' value: %s" % result)
         return None
 
-    @log_error
     def table_info(self):
         request = '''select table_name, column_name, data_type
                      from information_schema.columns
@@ -74,6 +76,5 @@ class PostgresConnector(IConnector):
             info[d[0]].append((d[1], d[2]))
         return info
 
-    @log_error
     def commit(self):
         self.conn.commit()

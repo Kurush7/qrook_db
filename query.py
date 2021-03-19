@@ -96,7 +96,8 @@ class QRQuery(IQRQuery):
             self.query += ' ' + data.query
 
         data = self.connector.exec(self.query, self.identifiers, self.literals, result=result)
-        data.set_used_fields(self.used_fields)
+        if data is not None:
+            data.set_used_fields(self.used_fields)
 
         if self.auto_commit:
             self.connector.commit()

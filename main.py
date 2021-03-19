@@ -11,6 +11,8 @@ DB.create_data(__name__, in_module=True)
 def main():
     print(DB.books)
     print(books, books.id)
+    data = DB.select(books).where(id='abc').all()
+
     data = DB.select(books).where(original_publication_year=2000, language_code='eng').\
         where(id=op.In(470, 490, 485)).exec('all')
     print(data[:10])
