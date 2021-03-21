@@ -11,6 +11,8 @@ import data
 # middle
 # todo first connection - no logs, for logger not configured
 # todo insert values -> add array of dicts support
+# todo funcall - not working with psycorg2
+# todo connection via URL
 
 # future
 # todo add support for nested queries
@@ -18,7 +20,7 @@ import data
 # todo add returning part for delete query (and update?)
 # todo add StructDataFormatter
 # todo add 'as' syntax: 'select count(*) as cnt
-
+# todo select(a).join(...)... -> means 'select *', but only a-table attributes are returned
 
 import qrlogging
 
@@ -41,6 +43,8 @@ class DBQueryAggregator:
     def insert(self, table: QRTable, *args, auto_commit=False, **kwargs):
         return QRInsert(self.connector, table, *args, auto_commit=auto_commit)
 
+    def funcall(self, func: str, *args, auto_commit=False, **kwargs):
+        return QRFuncCall(self.connector, func, *args, auto_commit=auto_commit)
 
 class DBCreator:
     """
@@ -83,6 +87,10 @@ class DB:
         :param conn_kwargs: kwarg-params like host and port needed to connect to database
         """
         DI.register(format_type, connector_type, *conn_args, **conn_kwargs)
+        self.connector_type = connector_type
+        self.conn_args = conn_args
+        self.conn_kwargs = conn_kwargs
+        self.format_type = format_type
 
         self.meta = dict()
         self.meta['connector'] = inject.instance(IConnector)
@@ -119,3 +127,5 @@ class DB:
     def insert(self, table: QRTable, *args, auto_commit=False):
         return self.meta['aggregator'].insert(table, *args, auto_commit=auto_commit)
 
+    def funcall(self, func: str, *args, auto_commit=False, **kwargs):
+        return self.meta['aggregator'].funcall(func, *args, auto_commit=auto_commit)

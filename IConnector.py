@@ -32,8 +32,6 @@ class IConnector:
         """
 
 
-# todo are abstracts needed?
-# todo add about success
 class DBResult:
     """
     class for db-query data.

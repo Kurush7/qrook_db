@@ -64,6 +64,9 @@ def main():
     data = DB.exec('select * from get_book_authors(1) as f(id int, name varchar)').config_fields('id', 'name').all()
     print(data)
 
+    data = DB.funcall('get_book_authors', 1).config_fields('id', 'name').all()
+    print('funcall:', data)
+
     q = DB.select(events, events.id, events.id).where(id=1)
     data = q.all()
     print('data:', data, ';\terror:', q.get_error())

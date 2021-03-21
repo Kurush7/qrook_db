@@ -112,6 +112,14 @@ class QRQuery(IQRQuery):
         return self.exec('one')
 
 
+class ReturnConfigurator:
+    """class for return fields configuration; must only be inherited with QRQuery class!"""
+    def config_fields(self, *args):
+        """set field names to return"""
+        # todo add support for iterable params
+        self.used_fields = list(args)
+        return self
+
 class QRSelect(QRQuery):
     def __init__(self, connector: IConnector, table: QRTable, *args):
         try:
@@ -216,7 +224,7 @@ class QRDelete(QRQuery):
         except Exception as e:
             super().__init__(connector, table)
             self.error = str(e)
-            qrlogging.warning("Failed to init select-query: %s", e)
+            qrlogging.warning("Failed to init delete-query: %s", e)
         finally:
             self.__configure_query_parts()
 
@@ -224,7 +232,6 @@ class QRDelete(QRQuery):
         self._add_query_part(QRWhere(self.tables))
 
 
-@log_class(log_error_default_self)
 class QRInsert(QRQuery):
     def __init__(self, connector: IConnector, table: QRTable, *args, auto_commit=False):
         try:
@@ -252,7 +259,7 @@ class QRInsert(QRQuery):
         except Exception as e:
             super().__init__(connector, table)
             self.error = str(e)
-            qrlogging.warning("Failed to init select-query: %s", e)
+            qrlogging.warning("Failed to init insert-query: %s", e)
         finally:
             self.__configure_query_parts()
 
@@ -261,13 +268,29 @@ class QRInsert(QRQuery):
         self._add_query_part(QRReturning(self.used_fields, self.tables))
 
 
-@log_class(log_error_default_self)
-class QRExec(QRQuery):
+class QRExec(QRQuery, ReturnConfigurator):
     def __init__(self, connector: IConnector, raw_query, auto_commit=False):
         super().__init__(connector, query=raw_query, auto_commit=auto_commit)
 
-    def config_fields(self, *args):
-        """set field names to return"""
-        # todo add support for iterable params
-        self.used_fields = list(args)
-        return self
+
+class QRFuncCall(QRQuery, ReturnConfigurator):
+    # todo not working: psycopg2 requires definitions for "record" return type
+    def __init__(self, connector: IConnector, function: str, *args, auto_commit=False):
+        try:
+            params = [QRDB_LITERAL] * len(args)
+            params = '(' + ', '.join(params) + ')'
+            query = 'select * from ' + QRDB_IDENTIFIER + params
+            identifiers = [function]
+            literals = list(args)
+            super().__init__(connector, query=query,
+                             identifiers=identifiers, literals=literals, auto_commit=auto_commit)
+        except Exception as e:
+            super().__init__(connector)
+            self.error = str(e)
+            qrlogging.warning("Failed to init function-call-query: %s", e)
+        finally:
+            self.__configure_query_parts()
+
+    def __configure_query_parts(self):
+        self._add_query_part(QRReturning(self.used_fields, self.tables))
+

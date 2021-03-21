@@ -1,7 +1,6 @@
 import logging
 
-_log_format = "%(asctime)s [%(levelname)s]: [%(app)s, %(name)s] - " \
-              "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
+_log_format = "%(asctime)s [%(levelname)s]: [%(app)s, %(name)s] - %(message)s"
 
 def info(msg, *args):
     if logger:
