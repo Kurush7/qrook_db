@@ -57,6 +57,10 @@ class TestSelect(TestRequest):
             self.assertGreater(data1[i]['id'], data1[i-1]['id'])
             self.assertLess(data2[i]['id'], data2[i-1]['id'])
 
+    def test_distinct(self):
+        data = DB.select(DB.ab, DB.ab.b_id, distinct=True).all()
+        self.assert_data_structure(data, type=list, rows_cnt=3, fields_cnt=1)
+
     def test_group_by(self):
         data = DB.select(DB.a, 'count(*)').join(DB.ab, op.Eq(DB.a.id, DB.ab.a_id))\
             .join(DB.b, op.Eq(DB.b.id, DB.ab.b_id)).group_by(DB.b.info).all()

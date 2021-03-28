@@ -121,7 +121,7 @@ class ReturnConfigurator:
         return self
 
 class QRSelect(QRQuery):
-    def __init__(self, connector: IConnector, table: QRTable, *args):
+    def __init__(self, connector: IConnector, table: QRTable, *args, **kwargs):
         try:
             identifiers, literals, used_fields = [], [], dict()
             if len(args) == 0:
@@ -140,9 +140,11 @@ class QRSelect(QRQuery):
                     self.__add_used_field(used_fields, {'name': arg})
             fields = fields[:-1]
 
+            ditinct = 'distinct' if kwargs.get('distinct') == True else ' '
+
             used_fields = [k for k, v in used_fields.items() if not v.get('expired')]
 
-            query = 'select ' + fields + ' from ' + QRDB_IDENTIFIER
+            query = 'select ' + ditinct + fields + ' from ' + QRDB_IDENTIFIER
             table_name = table.meta['table_name']
             identifiers += [table_name]
 

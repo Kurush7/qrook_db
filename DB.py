@@ -32,7 +32,7 @@ class DBQueryAggregator:
         return QRExec(self.connector, raw_query)
 
     def select(self, table: QRTable, *args, **kwargs):
-        return QRSelect(self.connector, table, *args)
+        return QRSelect(self.connector, table, *args, **kwargs)
 
     def delete(self, table: QRTable, auto_commit=False, *args, **kwargs):
         return QRDelete(self.connector, table, auto_commit)
@@ -115,8 +115,8 @@ class DB:
     def exec(self, raw_query):
         return self.meta['aggregator'].exec(raw_query)
 
-    def select(self, table: QRTable, *args):
-        return self.meta['aggregator'].select(table, *args)
+    def select(self, table: QRTable, *args, **kwargs):
+        return self.meta['aggregator'].select(table, *args, **kwargs)
 
     def delete(self, table: QRTable, auto_commit=False):
         return self.meta['aggregator'].delete(table, auto_commit)
