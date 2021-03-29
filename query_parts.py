@@ -54,9 +54,31 @@ def parse_request_args(tables, *args, disable_full_name=False, **kwargs):
             conditions.append(arg)
         elif isinstance(arg, op.Eq):
             if arg.has_both_args():
-                condition, _ = arg.condition(disable_full_name)
-                ids = arg.arg1, arg.arg2
-                identifiers.extend(ids)
+
+                def arg_parse(a):
+                    if not isinstance(a, QRField):
+                        literals.append(a)
+                        return QRDB_LITERAL
+                    else:
+                        identifiers.extend([a.name] if disable_full_name else [a.table_name, a.name])
+                        return QRDB_IDENTIFIER if disable_full_name else QRDB_IDENTIFIER + '.' + QRDB_IDENTIFIER
+
+                if isinstance(arg.arg2, op.IQROperator):
+                    if isinstance(arg.arg1, QRField):
+                        condition, lits = arg.arg2.condition(disable_full_name)
+                        literals.extend(lits)
+                        arg_parse(arg.arg1)
+                    elif isinstance(arg.arg1, str):
+                        condition, lits = arg.arg2.condition(disable_full_name)
+                        condition = condition[condition.find(' '):]  # remove identifier stuff
+                        condition = arg.arg1 + condition
+                        literals.extend(lits)
+                    else:
+                        raise Exception('unsupported op.Eq arguments:', arg.arg1, arg.arg2)
+
+                else:
+                    condition = arg_parse(arg.arg1) + ' = ' + arg_parse(arg.arg2)
+
                 conditions.append(condition)
     return identifiers, literals, conditions
 
@@ -191,7 +213,7 @@ class QRLimit(QueryPart):
         if len(kwargs) > 0 or len(args) != 1:
             raise Exception('Limit condition error: only one integer expected')
         n = args[0]
-        if not isinstance(n, int):
+        if n != 'all' and not isinstance(n, int):   # todo test the stuff
             raise Exception('Integer expected as a limit condition param')
 
         self.literals.append(n)

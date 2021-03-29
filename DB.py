@@ -7,6 +7,8 @@ import data
 # todo-list throughout the orm-project
 # important
 # todo tests
+# todo query.where(op.Eq(books.id, str(filters['book_id'])))
+# not working - duos -> interpreted as two identifiers
 
 # middle
 # todo first connection - no logs, for logger not configured
