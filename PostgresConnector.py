@@ -37,13 +37,20 @@ class PostgresConnector(IConnector):
         self.cursor = self.conn.cursor()
 
     def exec(self, request: str, identifiers=None, literals=None, result='all'):
-        request = request.replace(symbols.QRDB_IDENTIFIER, '{}')
+        #request = request.replace(symbols.QRDB_IDENTIFIER, '{}')
         request = request.replace(symbols.QRDB_LITERAL, '%s')
-        request = sql.SQL(request)
         if identifiers:
-            identifiers = [sql.Identifier(x) for x in identifiers]
-            request = request.format(*identifiers)
+            #identifiers = [sql.Identifier(x) for x in identifiers]
+            identifiers = ['"' + x + '"' for x in identifiers]
+            i = 0
+            while request.find(symbols.QRDB_IDENTIFIER) != -1:
+                request = request.replace(symbols.QRDB_IDENTIFIER, identifiers[i], 1)
+                i += 1
+            if len(identifiers) != i:
+                raise Exception('unexpected identifiers count')
+            #request = request.format(*identifiers)
 
+        request = sql.SQL(request)
         qrlogging.info('POSTGRES EXECUTE: %s with literals %s', request.as_string(self.cursor), literals)
         with self.lock:
             try:

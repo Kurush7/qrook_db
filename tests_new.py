@@ -61,6 +61,12 @@ class TestSelect(TestRequest):
         data = DB.select(DB.ab, DB.ab.b_id, distinct=True).all()
         self.assert_data_structure(data, type=list, rows_cnt=3, fields_cnt=1)
 
+    def test_add_attribute(self):
+        query = DB.select(DB.a, DB.a.id)
+        query.add_attribute(DB.a.name)
+        data = query.all()
+        self.assert_data_structure(data, type=list, fields_cnt=2)
+
     def test_group_by(self):
         data = DB.select(DB.a, 'count(*)').join(DB.ab, op.Eq(DB.a.id, DB.ab.a_id))\
             .join(DB.b, op.Eq(DB.b.id, DB.ab.b_id)).group_by(DB.b.info).all()
@@ -99,6 +105,11 @@ class TestSelect(TestRequest):
         self.assertEqual(query.get_error(), None)
 
         query = DB.a.select(DB.a.id, DB.a.id)
+        data = query.all()
+        self.assertEqual(data, None)
+        self.assertTrue(isinstance(query.get_error(), str))
+
+        query = DB.a.select(DB.a.id).where(id=1).add_attribute(DB.a.name)
         data = query.all()
         self.assertEqual(data, None)
         self.assertTrue(isinstance(query.get_error(), str))

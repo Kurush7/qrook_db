@@ -142,6 +142,7 @@ class QRSelect(QRQuery):
 
             ditinct = 'distinct' if kwargs.get('distinct') == True else ' '
 
+            self.full_used_fields = used_fields
             used_fields = [k for k, v in used_fields.items() if not v.get('expired')]
 
             query = 'select ' + ditinct + fields + ' from ' + QRDB_IDENTIFIER
@@ -156,6 +157,19 @@ class QRSelect(QRQuery):
             qrlogging.warning("Failed to init select-query: %s", e)
         finally:
             self.__configure_query_parts()
+
+    def add_attribute(self, field: QRField):
+        if self.error: return self
+        if self.cur_order >= 0:
+            self.error = 'can only add attributes strictly after query initializing'
+            return self
+
+        s = ',%s.%s ' % (QRDB_IDENTIFIER, QRDB_IDENTIFIER)
+        i = self.query.find('from')
+        self.query = self.query[:i] + s + self.query[i:]
+        self.identifiers = self.identifiers[:-1] + [field.table_name, field.name] + [self.identifiers[-1]]
+        new_name = self.__add_used_field(self.full_used_fields, {'name': field.name, 'table': field.table_name})
+        self.used_fields.append(new_name)
 
     def __configure_query_parts(self):
         # order is important - must correlate with query parts order
@@ -183,8 +197,10 @@ class QRSelect(QRQuery):
                     raise Exception('two identical return fields set for select query')
                 fields[x['name']]['tables'].append(a['table'])
             fields[a['table'] + '_' + a['name']] = a
+            return a['table'] + '_' + a['name']
         else:
             fields[a['name']] = a
+            return a['name']
 
 
 class QRUpdate(QRQuery):
