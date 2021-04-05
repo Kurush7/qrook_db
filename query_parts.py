@@ -213,7 +213,7 @@ class QRLimit(QueryPart):
         if len(kwargs) > 0 or len(args) != 1:
             raise Exception('Limit condition error: only one integer expected')
         n = args[0]
-        if n != 'all' and not isinstance(n, int):   # todo test the stuff
+        if n != 'all' and not isinstance(n, int):
             raise Exception('Integer expected as a limit condition param')
 
         self.literals.append(n)
@@ -244,15 +244,13 @@ class QRJoin(QueryPart):
             raise Exception('Join condition error: two conditional params')
         table, cond = args[0], args[1]
         self.add_tables(table)
-        # todo accurate with adding - links working for all query-parts!
+        # todo be accurate with adding - links working for all query-parts!
 
         if type(cond) == str:
             self.identifiers.append(table.meta['table_name'])
             join_cond = QRDB_IDENTIFIER + ' on %s' % cond
 
         else:
-            # todo different imports -> no recognition if not isinstance(cond, op.Eq):
-            #    raise Exception('join: op.Eq instance expected, got %s' % type(cond))
             if not cond.has_both_args():
                 raise Exception('join: op.Eq contains only one instance')
             if not isinstance(cond.arg1, QRField) or not isinstance(cond.arg2, QRField):

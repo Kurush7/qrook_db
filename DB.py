@@ -5,24 +5,24 @@ import operators
 import data
 
 # todo-list throughout the orm-project
-# important
-# todo tests
-# todo query.where(op.Eq(books.id, str(filters['book_id'])))
-# not working - duos -> interpreted as two identifiers
+'''
+===important===
+todo tests
 
-# middle
-# todo first connection - no logs, for logger not configured
-# todo insert values -> add array of dicts support
-# todo funcall - not working with psycorg2
-# todo connection via URL
+===middle===
+todo first connection - no logs, for logger not configured
+todo insert values -> add array of dicts support
+todo funcall - not working with psycorg2
+todo connection via URL-string
+todo select(a).join(...)... -> means 'select *', but only a-table attributes are returned
 
-# future
-# todo add support for nested queries
-# todo add select(books.id) parsing -> extract table from ONLY datafield
-# todo add returning part for delete query (and update?)
-# todo add StructDataFormatter
-# todo add 'as' syntax: 'select count(*) as cnt
-# todo select(a).join(...)... -> means 'select *', but only a-table attributes are returned
+===future===
+todo add support for nested queries
+todo add select(books.id) parsing -> extract table from ONLY datafield
+todo add returning part for delete query (and update?)
+todo add StructDataFormatter
+todo add 'as' syntax: 'select count(*) as cnt
+'''
 
 import qrlogging
 
@@ -78,6 +78,9 @@ class DBCreator:
 
 
 class DB:
+    """facade class, recommended to be the only entry point for the whole orm
+    (though it provides access to data such as operations and tables to be used separately)
+    """
     operators = operators
     data = data
 

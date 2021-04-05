@@ -1,42 +1,46 @@
 import psycopg2
 import psycopg2.sql as sql
+from psycopg2 import pool
 
 from IConnector import IConnector, DBResult
 from error_handlers import log_error, retry_log_error
 from threading import Lock
 import symbols
 import qrlogging
+import threading
 
 # IConnector realization for Postgres database
 class PostgresConnector(IConnector):
-    def __init__(self, db, user, password, host='localhost', port=5432):
+    def __init__(self, db, user, password, host='localhost', port=5432, schema='public', min_conn=1, max_conn=10):
         """
         configure connection
         :param db: db-name
         """
         self.db = db
+        self.schema = schema
         self.user = user
         self.password = password
         self.host = host
         self.port = port
         self.connected = False
+        self.min_conn = min_conn
+        self.max_conn = max_conn
 
-        self.conn = None
-        self.lock = Lock()
-
+        self.pool = None
         self.__connect()
 
     def __del__(self):
-        if self.conn:
-            self.conn.close()
+        if self.pool:
+            self.pool.closeall()
 
     @retry_log_error()
     def __connect(self):
-        self.conn = psycopg2.connect(dbname=self.db, user=self.user,
+        self.pool = psycopg2.pool.ThreadedConnectionPool(self.min_conn, self.max_conn, dbname=self.db, user=self.user,
                                      password=self.password, host=self.host, port=self.port)
-        self.cursor = self.conn.cursor()
 
     def exec(self, request: str, identifiers=None, literals=None, result='all'):
+        conn = self.pool.getconn(key=threading.get_ident())
+        cursor = conn.cursor()
         #request = request.replace(symbols.QRDB_IDENTIFIER, '{}')
         request = request.replace(symbols.QRDB_LITERAL, '%s')
         if identifiers:
@@ -51,29 +55,30 @@ class PostgresConnector(IConnector):
             #request = request.format(*identifiers)
 
         request = sql.SQL(request)
-        qrlogging.info('POSTGRES EXECUTE: %s with literals %s', request.as_string(self.cursor), literals)
-        with self.lock:
-            try:
-                self.cursor.execute(request, literals)
-            except Exception as e:
-                self.conn.rollback()
-                raise e
-            data = self.extract_result(result)
+        qrlogging.info('POSTGRES EXECUTE: %s with literals %s', request.as_string(cursor), literals)
+        try:
+            #cursor.execute('''SET search_path TO %s, public;''' % self.schema)
+            cursor.execute(request, literals)
+        except Exception as e:
+            conn.rollback()
+            raise e
+        data = self.extract_result(cursor, result)
+        cursor.close()
         return DBResult(data, result)
 
-    def extract_result(self, result):
+    def extract_result(self, cursor, result):
         if result == 'all':
-            return self.cursor.fetchall()
+            return cursor.fetchall()
         elif result == 'one':
-            return self.cursor.fetchone()
+            return cursor.fetchone()
         elif result is not None:
             qrlogging.warning("unexpected 'result' value: %s" % result)
         return None
 
     def table_info(self):
-        request = '''select table_name, column_name, data_type
+        request = '''select distinct table_name, column_name, data_type
                      from information_schema.columns
-                     where table_schema = 'public';'''
+                     where table_schema = '%s';''' % self.schema
 
         data = self.exec(request, result='all')
         info = {}
@@ -84,4 +89,5 @@ class PostgresConnector(IConnector):
         return info
 
     def commit(self):
-        self.conn.commit()
+        conn = self.pool.getconn(threading.get_ident())
+        conn.commit()

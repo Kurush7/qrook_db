@@ -28,7 +28,7 @@ class ListDataFormatter(IDataFormatter):
 
 class DictDataFormatter(IDataFormatter):
     def format_data(self, data: DBResult):
-        if data.is_no_result():  # todo check for None data was here long ago... needed?
+        if data.is_no_result():
             return None
 
         used_fields = data.get_used_fields()

@@ -2,7 +2,7 @@ import qrookDB.DB as db
 from data import QRTable
 
 books, books_authors, authors, events = [QRTable] * 4
-DB = db.DB('postgres', 'qrook_db', 'kurush', 'pondoxo', format_type='dict')
+DB = db.DB('postgres', 'qrook_db_new', 'admin', 'admin', format_type='dict')
 op = DB.operators
 DB.create_logger(app_name='qrookdb_test')
 DB.create_data(__name__, in_module=True)

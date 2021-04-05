@@ -129,4 +129,3 @@ class Like(QROperator):
     """
     def __init__(self, literals):
         super().__init__(' like ', literals)
-    # todo class like - update condition() method
