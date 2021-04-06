@@ -1,14 +1,23 @@
 from error_handlers import *
 
-
 @log_class(log_error)
+@exc_no_db(exceptions=['set_DB'])
 class QRTable:
-    # fields = {'a':'int', 'b':'varchar'}
+    """
+    Object representing a table in database.
+    Contains info about table (name, fields as QRField objects)
+    and functions for quick access to queries
+    """
+
     def __init__(self, table_name=None, fields=None, DB=None):
+        """
+        :param fields: in format {'field_name': 'field_type', ...}
+        :param DB: DBQueryAggregator instance
+        """
         self.meta = dict()
         self.meta['table_name'] = table_name
         self.meta['fields'] = {}
-        self.DB = DB
+        self._DB = DB
 
         if fields is None: return
         for name, value_type in fields:
@@ -21,28 +30,27 @@ class QRTable:
             return '<Empty QRTable>'
         return '<QRTable ' + self.meta['table_name'] + '>'
 
+    def set_DB(self, DB):
+        self._DB = DB
+
     def select(self, *args, **kwargs):
-        if self.DB is None:
-            raise Exception('no DB instance set for table to make queries to')
-        return self.DB.select(self, *args, **kwargs)
+        return self._DB.select(self, *args, **kwargs)
 
     def update(self, *args, **kwargs):
-        if self.DB is None:
-            raise Exception('no DB instance set for table to make queries to')
-        return self.DB.update(self, *args, **kwargs)
+        return self._DB.update(self, *args, **kwargs)
 
     def insert(self, *args, **kwargs):
-        if self.DB is None:
-            raise Exception('no DB instance set for table to make queries to')
-        return self.DB.insert(self, *args, **kwargs)
+        return self._DB.insert(self, *args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.DB is None:
-            raise Exception('no DB instance set for table to make queries to')
-        return self.DB.delete(self, *args, **kwargs)
+        return self._DB.delete(self, *args, **kwargs)
 
 
 class QRField:
+    """
+    Object representing a table's field in database.
+    """
+
     def __init__(self, name, value_type, table: QRTable):
         self.name = name
         self.type = value_type
