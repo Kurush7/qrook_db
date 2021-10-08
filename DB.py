@@ -100,6 +100,7 @@ class DB:
         self.meta = dict()
         self.meta['connector'] = inject.instance(IConnector)
         self.meta['aggregator'] = DBQueryAggregator(self.meta['connector'])
+        qrlogging.logger = None
 
     def create_logger(self, logger_name='default', app_name='app',
                   level="INFO", file: str = None, file_level="INFO"):

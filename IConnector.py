@@ -1,37 +1,6 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 
-class IConnector:
-    """
-    Abstract class for db-connections
-    """
-    __metaclass__ = ABCMeta
-
-    @abstractmethod
-    def exec(self, query_str: str, identifiers=None, literals=None, result='all'):
-        """
-        :param query_str: request string,
-            containing symbols.QRDB_IDENTIFIER for identifiers and symbols.QRDB_LITERAL for literals
-        :param identifiers: iterable of identifiers
-        :param literals: iterable of literals
-        :param result: one of 'all' and 'one' - amount of rows to return from query results
-        :return: DBResult instance
-        """
-
-    @abstractmethod
-    def table_info(self):
-        """
-        return system info about tables in chosen db in given format:
-        {'books':[('id', 'integer'), ('date', 'date'), ...], ...}
-        """
-
-    @abstractmethod
-    def commit(self):
-        """
-        commit changes to database
-        """
-
-
 class DBResult:
     """
     class for db-query data.
@@ -46,6 +15,7 @@ class DBResult:
         self.used_fields = used_fields
 
     def get_data(self):
+        """return value is a list (list of lists)"""
         return self.data
 
     def get_result_type(self):
@@ -62,3 +32,34 @@ class DBResult:
 
     def is_no_result(self):
         return self.result_type is None
+
+
+class IConnector:
+    """
+    Abstract class for db-connections
+    """
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def exec(self, query_str: str, identifiers=None, literals=None, result='all') -> DBResult:
+        """
+        :param query_str: request string,
+            containing symbols.QRDB_IDENTIFIER for identifiers and symbols.QRDB_LITERAL for literals
+        :param identifiers: iterable of identifiers
+        :param literals: iterable of literals
+        :param result: one of 'all' and 'one' - amount of rows to return from query results
+        :return: DBResult instance
+        """
+
+    @abstractmethod
+    def table_info(self) -> dict:
+        """
+        return system info about tables in chosen db in given format:
+        {'books':[('id', 'integer'), ('date', 'date'), ...], ...}
+        """
+
+    @abstractmethod
+    def commit(self):
+        """
+        commit changes to database
+        """

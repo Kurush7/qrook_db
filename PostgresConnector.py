@@ -9,8 +9,12 @@ import symbols
 import qrlogging
 import threading
 
-# IConnector realization for Postgres database
+
 class PostgresConnector(IConnector):
+    """
+    IConnector realization for Postgres database. Uses psycorg2 and connection pools for multi-threaded usage
+    """
+
     def __init__(self, db, user, password, host='localhost', port=5432, schema='public', min_conn=1, max_conn=10):
         """
         configure connection
