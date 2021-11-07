@@ -100,6 +100,7 @@ class DB:
         self.meta = dict()
         self.meta['connector'] = inject.instance(IConnector)
         self.meta['aggregator'] = DBQueryAggregator(self.meta['connector'])
+        qrlogging.logger = None
 
     def __del__(self):
         self.meta['connector'].pool.closeall()

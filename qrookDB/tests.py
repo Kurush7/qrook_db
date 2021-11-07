@@ -115,41 +115,6 @@ class TestSelect(TestRequest):
         self.assertTrue(isinstance(query.get_error(), str))
 
 
-# def main():
-#
-#     ok = DB.update(events, auto_commit=True).set(time=t).where(id=6).exec()
-#     print(ok)
-#
-#     #ok = DB.insert(events, events.time, auto_commit=True).values([t]).exec()
-#     #ok = DB.insert(events, events.date, events.time, auto_commit=True).values([d, t]).exec()
-#     query = events.insert(events.date, events.time, auto_commit=False).values([[d, t], [None, t]]).returning('*')
-#     data = query.all()
-#     DB.commit()
-#     print(data)
-#
-#     query = events.insert(events.date, events.time, auto_commit=True).values([[d, t], [None, t]]).returning(events.date, events.time)
-#     data = query.all()
-#     print(data)
-#
-#     query = events.insert(events.date, events.time, auto_commit=True).values([[d, t], [None, t]]).returning(['date', 'time'])
-#     data = query.all()
-#     print(data)
-#
-#     query = events.insert(events.date, events.time, auto_commit=True).values([[d, t], [None, t]]).returning('date', 'time')
-#     data = query.all()
-#     print(data)
-#
-#     data = DB.exec('select * from get_book_authors(1) as f(id int, name varchar)').config_fields('id', 'name').all()
-#     print(data)
-#
-#     data = DB.funcall('get_book_authors', 1).config_fields('id', 'name').all()
-#     print('funcall:', data)
-#
-#     q = DB.select(events, events.id, events.id).where(id=1)
-#     data = q.all()
-#     print('data:', data, ';\terror:', q.get_error())
-
-
 if __name__ == '__main__':
     unittest.main()
 

@@ -52,6 +52,7 @@ class DBResult:
         self.used_fields = used_fields
 
     def get_data(self):
+        """return value is a list (list of lists)"""
         return self.data
 
     def get_result_type(self):

@@ -69,3 +69,4 @@ def create_logger(logger_name='default', app_name='app', level="INFO",
     return logger
 
 logger = create_logger()
+#logger = None
