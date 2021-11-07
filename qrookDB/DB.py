@@ -101,6 +101,12 @@ class DB:
         self.meta['connector'] = inject.instance(IConnector)
         self.meta['aggregator'] = DBQueryAggregator(self.meta['connector'])
 
+    def __del__(self):
+        self.meta['connector'].pool.closeall()
+
+    def enable_database_drop(self) -> bool:
+        return self.meta['connector'].enable_database_drop()
+
     def create_logger(self, logger_name='default', app_name='app',
                   level="INFO", file: str = None, file_level="INFO"):
         qrlogging.logger = qrlogging.create_logger(logger_name, app_name, level, file, file_level)

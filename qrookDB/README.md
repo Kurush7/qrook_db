@@ -1,5 +1,4 @@
-This package represents a new ORM to work with SQL-syntax databases (for now, only PostgreSQL and SQLite are natively supported,
-but you may inherit your own connectors from IConnector abstract class).
+This package represents a new ORM to work with SQL-syntax databases (for now, only PostgreSQL is supported).
 
 # Initializing
 To start working, all you need to do is import a package's facade object and initialise it:
@@ -12,7 +11,6 @@ DB.create_data(__name__, in_module=True)
 Here we first created a database connection, providing connect parameters (format_type defines the form
 in which results'll be returned - 'list' and 'dict' supported),
 then initialized an internal logger to write both in console and file.
-Note that instead of 'postgres' you could've sent the instance of the connector (including your own connectors).
 The 'create_data' function reads database system tables to get info about all user-defined tables,
 and creates QRTable objects based on this info. Now you can use table names (ones given to them in database)
 to access to these objects as DB instance fields (also, configuration showed above adds these table names to

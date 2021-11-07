@@ -31,6 +31,12 @@ class IConnector:
         commit changes to database
         """
 
+    @abstractmethod
+    def enable_database_drop(self) -> bool:
+        """
+        set flags to enable database drop from connection; return True if success
+        """
+        return False
 
 class DBResult:
     """

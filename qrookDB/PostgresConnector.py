@@ -26,12 +26,17 @@ class PostgresConnector(IConnector):
         self.min_conn = min_conn
         self.max_conn = max_conn
 
+        self.enable_drop = False
         self.pool = None
         self.__connect()
 
     def __del__(self):
         if self.pool:
             self.pool.closeall()
+
+    def enable_database_drop(self) -> bool:
+        self.enable_drop = True
+        return True
 
     @retry_log_error()
     def __connect(self):
@@ -41,6 +46,9 @@ class PostgresConnector(IConnector):
     def exec(self, request: str, identifiers=None, literals=None, result='all'):
         conn = self.pool.getconn(key=threading.get_ident())
         cursor = conn.cursor()
+        if self.enable_drop:
+            conn.autocommit = True
+            conn.set_isolation_level(0)
         #request = request.replace(symbols.QRDB_IDENTIFIER, '{}')
         request = request.replace(symbols.QRDB_LITERAL, '%s')
         if identifiers:
@@ -64,6 +72,9 @@ class PostgresConnector(IConnector):
             raise e
         data = self.extract_result(cursor, result)
         cursor.close()
+        #if request.startswith('select'):
+        if conn.autocommit:
+            self.pool.putconn(conn, key=threading.get_ident())
         return DBResult(data, result)
 
     def extract_result(self, cursor, result):
@@ -89,5 +100,6 @@ class PostgresConnector(IConnector):
         return info
 
     def commit(self):
-        conn = self.pool.getconn(threading.get_ident())
+        conn = self.pool.getconn(key=threading.get_ident())
         conn.commit()
+        self.pool.putconn(conn, key=threading.get_ident())

@@ -1,6 +1,7 @@
 # Custom
 **/*.log
 db
+.idea
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,pycharm,web,git
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,pycharm,web,git

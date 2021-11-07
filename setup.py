@@ -1,7 +1,25 @@
+import setuptools
+
+setuptools.setup(
+    name="qrookDB",
+    version="1.3.2.1",
+    author="Kurush",
+    author_email="ze17@ya.ru",
+    description="tiny ORM for SQL-databases",
+    long_description_content_type="text/markdown",
+    url="https://github.com/Kurush7/qrook_db",
+    packages=setuptools.find_packages(),
+    classifiers=[
+        "Programming Language :: Python :: 3.6",
+        "Operating System :: OS Independent",
+    ],
+    python_requires='>=3.6',
+    long_description='''
+    
+# Initializing
 This package represents a new ORM to work with SQL-syntax databases (for now, only PostgreSQL and SQLite are natively supported,
 but you may inherit your own connectors from IConnector abstract class).
 
-# Initializing
 To start working, all you need to do is import a package's facade object and initialise it:
 ```python
 import qrookDB.DB as DB
@@ -16,7 +34,7 @@ Note that instead of 'postgres' you could've sent the instance of the connector 
 The 'create_data' function reads database system tables to get info about all user-defined tables,
 and creates QRTable objects based on this info. Now you can use table names (ones given to them in database)
 to access to these objects as DB instance fields (also, configuration showed above adds these table names to
-your current module, so you can use short names: 'books' instead of 'DB.books').  
+your current module, so you can use short names: 'books' instead of 'DB.books').   
 
 # Querying
 You can form execute queries using either DB instance or concrete tables (in this case, you don't need to
@@ -38,10 +56,10 @@ data = DB.select(books).where(original_publication_year=2000, language_code='eng
 
 # you can add raw-string query parts, but it'll be on your conscience in terms of security   
 query = books.select('count(*)').group_by(books.original_publication_year)
-data = query.one()
+data = query.all()
 
 data = DB.select(books, books.id).where('id < 10').order_by(books.id, desc=True).\
-    limit(3).offset(2).exec('all')
+    limit(3).offset(2).all()
 
 # here fields have same name ('id'), but via different tables it'll be ok
 # (for data in dict-format, table-names'll be added to keys) 
@@ -80,3 +98,5 @@ use 'config_fields' to define results' names (not necessary for 'list' data form
 data = DB.exec('select * from get_book_authors(1) as f(id int, name varchar)').config_fields('id', 'name').all()
 print(data)
 ```
+'''
+)
