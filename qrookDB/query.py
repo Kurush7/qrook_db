@@ -120,7 +120,7 @@ class ReturnConfigurator:
         self.used_fields = list(args)
         return self
 
-class QRSelect(QRQuery):
+class QRSelect(QRQuery, ReturnConfigurator):
     def __init__(self, connector: IConnector, table: QRTable, *args, **kwargs):
         try:
             identifiers, literals, used_fields = [], [], dict()

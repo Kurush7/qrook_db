@@ -36,7 +36,8 @@ class PostgresConnector(IConnector):
 
     def __del__(self):
         if self.pool:
-            self.pool.closeall()
+            if not self.pool.closed:
+                self.pool.closeall()
 
     def enable_database_drop(self) -> bool:
         self.enable_drop = True
@@ -91,17 +92,52 @@ class PostgresConnector(IConnector):
         return None
 
     def table_info(self):
-        request = '''select distinct table_name, column_name, data_type
+        request = '''
+        select distinct table_name, column_name, data_type
                      from information_schema.columns
-                     where table_schema = '%s';''' % self.schema
+                     where table_schema = '%s';
+         ''' % self.schema
 
         data = self.exec(request, result='all')
         info = {}
         for d in data.get_data():
             if not info.get(d[0]):
-                info[d[0]] = []
-            info[d[0]].append((d[1], d[2]))
+                info[d[0]] = {'columns': []}
+            info[d[0]]['columns'].append((d[1], d[2]))
+
+        self._add_table_constraints(info)
         return info
+
+    def _add_table_constraints(self, tables: dict):
+        request = '''
+        SELECT
+            tc.constraint_type,
+            tc.table_name,
+            kcu.column_name,
+            ccu.table_name AS foreign_table_name,
+            ccu.column_name AS foreign_column_name
+        FROM
+            information_schema.table_constraints AS tc
+            JOIN information_schema.key_column_usage AS kcu
+              ON tc.constraint_name = kcu.constraint_name
+              AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.constraint_column_usage AS ccu
+              ON ccu.constraint_name = tc.constraint_name
+              AND ccu.table_schema = tc.table_schema
+        WHERE tc.constraint_type IN ('FOREIGN KEY', 'PRIMARY KEY') and tc.table_schema='%s';
+         ''' % self.schema
+        data = self.exec(request, result='all')
+
+        for constraint, table, column, foreign_table, foreign_column in data.get_data():
+            if constraint == 'PRIMARY KEY':
+                tables[table]['primary_key'] = column
+            if constraint == 'FOREIGN KEY':
+                if not tables[table].get('foreign_keys'):
+                    tables[table]['foreign_keys'] = []
+                tables[table]['foreign_keys'].append({'column': column,
+                                                      'foreign_table': foreign_table,
+                                                      'foreign_column': foreign_column
+                                                      })
 
     def commit(self):
         conn = self.pool.getconn(key=threading.get_ident())

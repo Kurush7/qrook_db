@@ -5,7 +5,7 @@ but you may inherit your own connectors from IConnector abstract class).
 To start working, all you need to do is import a package's facade object and initialise it:
 ```python
 import qrookDB.DB as DB
-DB = db.DB('postgres', 'db_name', 'username', 'password', format_type='dict')
+DB = DB.DB('postgres', 'db_name', 'username', 'password', format_type='dict')
 DB.create_logger(app_name='qrookdb_test', file='app_log.log')
 DB.create_data(__name__, in_module=True)
 ```
@@ -79,4 +79,41 @@ data = query.all()
 use 'config_fields' to define results' names (not necessary for 'list' data format) 
 data = DB.exec('select * from get_book_authors(1) as f(id int, name varchar)').config_fields('id', 'name').all()
 print(data)
+```
+
+## Table's meta-data
+Using this package you can easily discover your database. DB instance provides information
+about table's name, its columns (with their name and type) and info about primary and
+foreign keys. Example of function which prints all info about existing tables is shown below.
+```python
+def print_tables():
+    tables = DB.meta['tables']
+    for table_name, table in tables.items():
+        meta = table.meta
+        print(f"\n===--- {meta['table_name']} ---===")
+        for field_name, field in meta['fields'].items():
+            pk_flag = field.primary_key is True  # or field == meta['primary_key']
+            print(f"{'(*)' if pk_flag else '   '} {field.name}: {field.type}")
+
+        if len(meta['foreign_keys']):
+            print('Constraints:')
+            for fields_with_fk in meta['foreign_keys']:
+                fk = fields_with_fk.foreign_key
+                print(f'\tForeign key: {fields_with_fk.name} references {fk.table.meta["table_name"]}({fk.name})')
+```
+
+and the result can be:
+```shell
+===--- publications ---===
+    book_id: integer
+    isbn: bigint
+(*) id: integer
+    created_at: timestamp with time zone
+    isbn13: bigint
+    language_code: character varying
+    publication_year: smallint
+    info: jsonb
+    updated_at: timestamp with time zone
+Constraints:
+	Foreign key: book_id references books(id)
 ```

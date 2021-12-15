@@ -22,7 +22,12 @@ class IConnector:
     def table_info(self):
         """
         return system info about tables in chosen db in given format:
-        {'books':[('id', 'integer'), ('date', 'date'), ...], ...}
+        {'books': {
+            'columns': [('id', 'integer'), ('publication_id', 'integer'), ('date', 'date') ...],
+            'primary_key': 'id'
+            'foreign_keys': [{'column': 'publication_id', 'foreign_table': 'publications', 'foreign_column': 'id'}]
+            }, ...
+        }
         """
 
     @abstractmethod

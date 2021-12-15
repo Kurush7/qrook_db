@@ -1,3 +1,5 @@
+from typing import List, Dict
+
 from error_handlers import *
 
 @log_class(log_error)
@@ -9,7 +11,7 @@ class QRTable:
     and functions for quick access to queries
     """
 
-    def __init__(self, table_name=None, fields=None, DB=None):
+    def __init__(self, table_name=None, fields=None, pk=None, DB=None):
         """
         :param fields: in format {'field_name': 'field_type', ...}
         :param DB: DBQueryAggregator instance
@@ -17,13 +19,28 @@ class QRTable:
         self.meta = dict()
         self.meta['table_name'] = table_name
         self.meta['fields'] = {}
+        self.meta['primary_key'] = None
+        self.meta['foreign_keys'] = []
         self._DB = DB
 
-        if fields is None: return
+        if fields is None:
+            return
         for name, value_type in fields:
-            f = QRField(name, value_type, self)
+            f = QRField(name, value_type, self, primary_key=name == pk,
+                        foreign_key=None)
+            if name == pk:
+                self.meta['primary_key'] = f
             self.meta['fields'][name] = f
             self.__dict__[name] = f
+
+    def add_foreign_keys(self, fks: List, tables: Dict):
+        """
+        :param tables - dict string:QRTable (string is table name)
+        """
+        for fk in fks:
+            f = tables[fk['foreign_table']].meta['fields'][fk['foreign_column']]
+            self.meta['fields'][fk['column']].set_foreign_key(f)
+            self.meta['foreign_keys'].append(self.meta['fields'][fk['column']])
 
     def __str__(self):
         if self.meta['table_name'] is None:
@@ -51,11 +68,23 @@ class QRField:
     Object representing a table's field in database.
     """
 
-    def __init__(self, name, value_type, table: QRTable):
+    def __init__(self, name, value_type, table: QRTable, primary_key: bool = False, foreign_key=None):
+        """
+        :param foreign_key - QRField instance
+        """
         self.name = name
         self.type = value_type
         self.table_name = table.meta['table_name']
         self.table = table
+        self.primary_key = primary_key
+        self.foreign_key = foreign_key
+
+    def set_foreign_key(self, fk):
+        """
+        :param fk - QRField instance
+        """
+        self.foreign_key = fk
+
 
     def __str__(self):
         if self.name is None:

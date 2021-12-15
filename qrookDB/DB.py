@@ -67,7 +67,10 @@ class DBCreator:
         t = dict()
 
         for name, field in tables.items():
-            t[name] = QRTable(name, field, self.db)
+            t[name] = QRTable(name, field['columns'], field.get('primary_key'), self.db)
+        for name, field in tables.items():
+            if field.get('foreign_keys') is not None:
+                t[name].add_foreign_keys(field['foreign_keys'], t)
 
         self.__dict__.update(t)
         if source:
@@ -120,6 +123,7 @@ class DB:
         """
         data = DBCreator(self.meta['connector'], self.meta['aggregator']).create_data(source, in_module)
         self.__dict__.update(data)
+        self.meta['tables'] = data
 
     def commit(self):
         self.meta['connector'].commit()

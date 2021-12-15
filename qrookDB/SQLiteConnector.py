@@ -75,9 +75,9 @@ class SQLiteConnector(IConnector):
             name = table[0]
             sql = 'PRAGMA table_info(%s);' % name
             data = self.exec(sql, result='all')
-            info[name] = []
+            info[name] = {'columns': []}
             for d in data.get_data():
-                info[name].append([d[1], d[2]])
+                info[name]['columns'].append([d[1], d[2]])
         return info
 
     def commit(self):
